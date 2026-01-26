@@ -1,5 +1,3 @@
-📚 Minha Leitura - Gestor de Biblioteca Pessoal
-
 # 📚 Minha Leitura - Gestor de Biblioteca Pessoal
 
 O **Minha Leitura** é um aplicativo desenvolvido em Flutter para ajudar leitores a organizarem sua coleção de livros e, principalmente, manterem o hábito de leitura em dia através de um sistema de metas inteligentes.
@@ -262,3 +260,4 @@ Sem Atribuição: Se você compartilhar, deve dar o crédito apropriado.
 Para ver o texto completo da licença, visite Creative Commons 4.0 Legal Code.
 
 Desenvolvido com 💙 em Flutter.
+
