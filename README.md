@@ -48,13 +48,6 @@ O app funciona como uma biblioteca virtual (catálogo) e também como um "Person
   * `file_picker`: Importação de arquivos de backup.
   * `flutter_launcher_icons`: Gerenciamento de ícone do app.
 
-## 📸 Capturas de Tela
-
-
-| Tela Inicial        | Cadastro            | Detalhes            | Dark Mode           |
-| --------------------- | --------------------- | --------------------- | --------------------- |
-| [Insira Print Aqui] | [Insira Print Aqui] | [Insira Print Aqui] | [Insira Print Aqui] |
-
 ## 🚀 Como Rodar o Projeto
 
 Pré-requisitos: Ter o [Flutter SDK](https://docs.flutter.dev/get-started/install "null") instalado.
@@ -260,4 +253,5 @@ Sem Atribuição: Se você compartilhar, deve dar o crédito apropriado.
 Para ver o texto completo da licença, visite Creative Commons 4.0 Legal Code.
 
 Desenvolvido com 💙 em Flutter.
+
 
