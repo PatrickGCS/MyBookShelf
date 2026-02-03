@@ -1,5 +1,3 @@
-📚 Minha Leitura - Gestor de Biblioteca Pessoal
-
 # 📚 Minha Leitura - Gestor de Biblioteca Pessoal
 
 O **Minha Leitura** é um aplicativo desenvolvido em Flutter para ajudar leitores a organizarem sua coleção de livros e, principalmente, manterem o hábito de leitura em dia através de um sistema de metas inteligentes.
@@ -186,24 +184,6 @@ file_picker: Importação de arquivos de backup.
 
 flutter_launcher_icons: Gerenciamento de ícone do app.
 
-📸 Capturas de Tela
-
-Tela Inicial
-
-Cadastro
-
-Detalhes
-
-Dark Mode
-
-[Insira Print Aqui]
-
-[Insira Print Aqui]
-
-[Insira Print Aqui]
-
-[Insira Print Aqui]
-
 🚀 Como Rodar o Projeto
 
 Pré-requisitos: Ter o Flutter SDK instalado.
@@ -235,6 +215,19 @@ flutter build apk --release
 
 O arquivo estará em: build/app/outputs/flutter-apk/app-release.apk
 
+### 💬 Citações (Quotes)
+* **Guarde momentos marcantes:** Registre frases e trechos que te impactaram durante a leitura.
+* **Referência rápida:** Salve o texto e o número da página para encontrar facilmente depois.
+* **Coleção pessoal:** Visualize todas as suas citações salvas diretamente na tela de detalhes de cada livro.
+
+### 📱 Leitor de eBooks Integrado (Novo!)
+
+* **Suporte a Arquivos:** Importe seus livros digitais nos formatos **PDF** e **EPUB** diretamente do armazenamento do celular.
+* **Leitura Interna:** Leia seus livros dentro do próprio app, sem necessidade de aplicativos externos.
+* **Marcador Automático:** O app salva automaticamente a página onde você parou. Ao abrir o livro novamente, você continua exatamente do mesmo ponto.
+* **Registro de Sessões:** Ao fechar o leitor, o app calcula quantas páginas foram lidas e cria um registro automático no seu "Histórico de Leitura".
+* **Metadados:** O sistema identifica automaticamente o total de páginas do arquivo PDF/EPUB no momento do cadastro.
+
 🤝 Contribuição
 
 Sinta-se à vontade para fazer um fork deste projeto e enviar Pull Requests. Sugestões de novas funcionalidades como "Gráfico de leitura mensal" ou "Notificações de lembrete" são bem-vindas!
@@ -262,3 +255,4 @@ Sem Atribuição: Se você compartilhar, deve dar o crédito apropriado.
 Para ver o texto completo da licença, visite Creative Commons 4.0 Legal Code.
 
 Desenvolvido com 💙 em Flutter.
+
