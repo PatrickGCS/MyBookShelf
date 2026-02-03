@@ -1,5 +1,23 @@
 import 'package:flutter/material.dart';
 
+// --- CLASSE NOVA: CITAÇÃO ---
+class Quote {
+  final int? id;
+  final int bookId;
+  final String text;
+  final int page;
+
+  Quote({this.id, required this.bookId, required this.text, required this.page});
+
+  Map<String, dynamic> toMap() => {
+    'id': id, 'bookId': bookId, 'text': text, 'page': page
+  };
+
+  factory Quote.fromMap(Map<String, dynamic> map) => Quote(
+    id: map['id'], bookId: map['bookId'], text: map['text'], page: map['page']
+  );
+}
+
 class ReadingSession {
   final int? id;
   final int bookId;
@@ -28,23 +46,24 @@ class Book {
   final double price;
   final bool isRead;
   final DateTime dateAcquired;
-  final DateTime? startDate;   
-  final DateTime? targetDate;  
+  final DateTime? startDate;
+  final DateTime? targetDate;
   final String? imagePath;
   final double rating;
   final String? review;
+  final bool isPaused;
+  final DateTime? lastPauseDate;
   
-  // --- NOVOS CAMPOS PARA PAUSA ---
-  final bool isPaused; 
-  final DateTime? lastPauseDate; // Data em que apertou "Pausar"
+  // --- NOVO CAMPO: CAMINHO DO EBOOK ---
+  final String? ebookPath; 
 
   Book({
     this.id, required this.title, required this.author, required this.publisher, required this.genre,
     required this.pageCount, this.currentPage = 0, required this.price, required this.isRead,
     required this.dateAcquired, this.startDate, this.targetDate,
     this.imagePath, this.rating = 0.0, this.review,
-    this.isPaused = false, // Padrão falso
-    this.lastPauseDate,
+    this.isPaused = false, this.lastPauseDate,
+    this.ebookPath, // Construtor atualizado
   });
 
   Map<String, dynamic> toMap() {
@@ -55,8 +74,9 @@ class Book {
       'startDate': startDate?.toIso8601String(),
       'targetDate': targetDate?.toIso8601String(),
       'imagePath': imagePath, 'rating': rating, 'review': review,
-      'isPaused': isPaused ? 1 : 0,                 // <--- Salva
-      'lastPauseDate': lastPauseDate?.toIso8601String(), // <--- Salva
+      'isPaused': isPaused ? 1 : 0,
+      'lastPauseDate': lastPauseDate?.toIso8601String(),
+      'ebookPath': ebookPath, // Salva no banco
     };
   }
 
@@ -68,18 +88,18 @@ class Book {
       startDate: map['startDate'] != null ? DateTime.parse(map['startDate']) : null,
       targetDate: map['targetDate'] != null ? DateTime.parse(map['targetDate']) : null,
       imagePath: map['imagePath'], rating: map['rating'] ?? 0.0, review: map['review'],
-      isPaused: (map['isPaused'] ?? 0) == 1, // <--- Recupera
-      lastPauseDate: map['lastPauseDate'] != null ? DateTime.parse(map['lastPauseDate']) : null, // <--- Recupera
+      isPaused: (map['isPaused'] ?? 0) == 1,
+      lastPauseDate: map['lastPauseDate'] != null ? DateTime.parse(map['lastPauseDate']) : null,
+      ebookPath: map['ebookPath'], // Lê do banco
     );
   }
 
   double get progress => pageCount == 0 ? 0 : currentPage / pageCount;
 
-  // Lógica de Cor (Agora cinza se estiver pausado)
   Color getUrgencyColor() {
     if (isRead) return Colors.green;
-    if (isPaused) return Colors.grey; // <--- Cinza se pausado
-    if (targetDate == null || startDate == null) return Colors.blue; // Azul se não começou
+    if (isPaused) return Colors.grey; 
+    if (targetDate == null || startDate == null) return Colors.blue;
 
     final now = DateTime.now();
     if (targetDate!.isBefore(now)) return Colors.red;
@@ -96,7 +116,7 @@ class Book {
 
   String getUrgencyText() {
     if (isRead) return "Concluído";
-    if (isPaused) return "Pausado"; // <--- Aviso
+    if (isPaused) return "Pausado";
     if (startDate == null) return "Não iniciado";
     if (targetDate == null) return "Sem meta";
     
