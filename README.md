@@ -30,6 +30,19 @@ O app funciona como uma biblioteca virtual (catálogo) e também como um "Person
 * **Histórico de Sessões:** Registro detalhado de cada vez que você leu (Data e página parada).
 * **Avaliação:** Ao terminar, dê uma nota (1 a 5 estrelas) e escreva uma resenha.
 
+### 💬 Citações (Quotes)
+* **Guarde momentos marcantes:** Registre frases e trechos que te impactaram durante a leitura.
+* **Referência rápida:** Salve o texto e o número da página para encontrar facilmente depois.
+* **Coleção pessoal:** Visualize todas as suas citações salvas diretamente na tela de detalhes de cada livro.
+
+### 📱 Leitor de eBooks Integrado (Novo!)
+
+* **Suporte a Arquivos:** Importe seus livros digitais nos formatos **PDF** e **EPUB** diretamente do armazenamento do celular.
+* **Leitura Interna:** Leia seus livros dentro do próprio app, sem necessidade de aplicativos externos.
+* **Marcador Automático:** O app salva automaticamente a página onde você parou. Ao abrir o livro novamente, você continua exatamente do mesmo ponto.
+* **Registro de Sessões:** Ao fechar o leitor, o app calcula quantas páginas foram lidas e cria um registro automático no seu "Histórico de Leitura".
+* **Metadados:** O sistema identifica automaticamente o total de páginas do arquivo PDF/EPUB no momento do cadastro.
+
 ### ⚙️ Utilitários
 
 * **Backup e Restauração:** Exporte seu banco de dados para o Google Drive/WhatsApp e restaure em outro celular.
@@ -48,12 +61,6 @@ O app funciona como uma biblioteca virtual (catálogo) e também como um "Person
   * `file_picker`: Importação de arquivos de backup.
   * `flutter_launcher_icons`: Gerenciamento de ícone do app.
 
-## 📸 Capturas de Tela
-
-
-| Tela Inicial        | Cadastro            | Detalhes            | Dark Mode           |
-| --------------------- | --------------------- | --------------------- | --------------------- |
-| [Insira Print Aqui] | [Insira Print Aqui] | [Insira Print Aqui] | [Insira Print Aqui] |
 
 ## 🚀 Como Rodar o Projeto
 
@@ -78,6 +85,7 @@ Pré-requisitos: Ter o [Flutter SDK](https://docs.flutter.dev/get-started/instal
    ```
    flutter run
    ```
+
 
 ## 📱 Gerando o APK (Android)
 
@@ -255,4 +263,5 @@ Sem Atribuição: Se você compartilhar, deve dar o crédito apropriado.
 Para ver o texto completo da licença, visite Creative Commons 4.0 Legal Code.
 
 Desenvolvido com 💙 em Flutter.
+
 
