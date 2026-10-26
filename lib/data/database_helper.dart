@@ -19,7 +19,14 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
     // Adicionado onUpgrade para migração
-    return await openDatabase(path, version: 2, onCreate: _createDB, onUpgrade: _onUpgrade);
+    return await openDatabase(
+      path,
+      version: 2,
+      // Sem isso o SQLite ignora FOREIGN KEY / ON DELETE CASCADE
+      onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
+      onCreate: _createDB,
+      onUpgrade: _onUpgrade,
+    );
   }
 
   Future _createDB(Database db, int version) async {
@@ -75,7 +82,11 @@ class DatabaseHelper {
     }
   }
 
-  Future close() async { final db = await instance.database; db.close(); }
+  Future<void> close() async {
+    final db = _database;
+    _database = null;
+    await db?.close();
+  }
   Future<int> create(Book book) async { final db = await instance.database; return await db.insert('books', book.toMap()); }
   Future<List<Book>> readAllBooks() async { final db = await instance.database; final result = await db.query('books', orderBy: 'title ASC'); return result.map((json) => Book.fromMap(json)).toList(); }
   Future<int> update(Book book) async { final db = await instance.database; return await db.update('books', book.toMap(), where: 'id = ?', whereArgs: [book.id]); }

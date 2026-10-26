@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
       valueListenable: _themeNotifier,
       builder: (context, currentMode, child) {
         return MaterialApp(
-          title: 'Gestor de Livros',
+          title: 'MyBookShelf',
           debugShowCheckedModeBanner: false,
           themeMode: currentMode,
           // TEMA CLARO
@@ -176,7 +176,7 @@ class _BooksScreenState extends State<BooksScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Minha Leitura', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('MyBookShelf', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         actions: [
@@ -292,7 +292,7 @@ class _BooksScreenState extends State<BooksScreen> {
                                       children: [
                                         PopupMenuButton(
                                           icon: const Icon(Icons.more_vert, size: 20), padding: EdgeInsets.zero,
-                                          onSelected: (value) async { if (value == 'delete') { await DatabaseHelper.instance.delete(book.id!); refreshBooks(); searchController.clear(); } else if (value == 'edit') _showBookForm(context, book: book); },
+                                          onSelected: (value) async { if (value == 'delete') { await _confirmAndDeleteBook(book); } else if (value == 'edit') _showBookForm(context, book: book); },
                                           itemBuilder: (context) => [ const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text("Editar")])), const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 18), SizedBox(width: 8), Text("Excluir", style: TextStyle(color: Colors.red))])), ],
                                         ),
                                         
@@ -345,7 +345,7 @@ class _BooksScreenState extends State<BooksScreen> {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(color: color.withOpacity(isDark ? 0.2 : 0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.5))),
+        decoration: BoxDecoration(color: color.withValues(alpha: isDark ? 0.2 : 0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.5))),
         child: Column(children: [Text(count.toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)), const SizedBox(height: 2), Text(label, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87))]),
       ),
     );
@@ -443,14 +443,7 @@ class _BooksScreenState extends State<BooksScreen> {
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
               FilledButton(
                 onPressed: () async {
-                  final updatedBook = Book(
-                    id: book.id, title: book.title, author: book.author, publisher: book.publisher, genre: book.genre,
-                    pageCount: book.pageCount, price: book.price, dateAcquired: book.dateAcquired,
-                    currentPage: book.currentPage, isRead: book.isRead, imagePath: book.imagePath,
-                    startDate: DateTime.now(),
-                    targetDate: targetDate,
-                    ebookPath: book.ebookPath, // Mantém o ebook
-                  );
+                  final updatedBook = book.copyWith(startDate: DateTime.now(), targetDate: targetDate);
                   await DatabaseHelper.instance.update(updatedBook);
                   refreshBooks(); // <--- CORREÇÃO: Usando _refreshBook() (singular)
                   if (mounted) Navigator.pop(ctx);
@@ -501,23 +494,11 @@ class _BooksScreenState extends State<BooksScreen> {
                               final daysPaused = now.difference(pauseStart).inDays;
                               final newTarget = book.targetDate != null ? book.targetDate!.add(Duration(days: daysPaused)) : null;
 
-                              final updatedBook = Book(
-                                id: book.id, title: book.title, author: book.author, publisher: book.publisher, genre: book.genre,
-                                pageCount: book.pageCount, price: book.price, dateAcquired: book.dateAcquired,
-                                currentPage: book.currentPage, isRead: book.isRead, imagePath: book.imagePath, startDate: book.startDate,
-                                rating: book.rating, review: book.review, isPaused: false, targetDate: newTarget, lastPauseDate: null,
-                                ebookPath: book.ebookPath,
-                              );
+                              final updatedBook = book.copyWith(isPaused: false, targetDate: newTarget, clearTargetDate: newTarget == null, clearLastPauseDate: true);
                               await DatabaseHelper.instance.update(updatedBook);
                               if (mounted) { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Leitura retomada! Meta adiada em $daysPaused dias."))); }
                             } else {
-                              final updatedBook = Book(
-                                id: book.id, title: book.title, author: book.author, publisher: book.publisher, genre: book.genre,
-                                pageCount: book.pageCount, price: book.price, dateAcquired: book.dateAcquired,
-                                currentPage: book.currentPage, isRead: book.isRead, imagePath: book.imagePath, startDate: book.startDate,
-                                targetDate: book.targetDate, rating: book.rating, review: book.review, isPaused: true, lastPauseDate: DateTime.now(),
-                                ebookPath: book.ebookPath,
-                              );
+                              final updatedBook = book.copyWith(isPaused: true, lastPauseDate: DateTime.now());
                               await DatabaseHelper.instance.update(updatedBook);
                               if (mounted) { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Leitura pausada."))); }
                             }
@@ -561,15 +542,13 @@ class _BooksScreenState extends State<BooksScreen> {
                       int newPage = int.tryParse(pageController.text) ?? book.currentPage;
                       if (newPage > book.pageCount) newPage = book.pageCount;
                       
-                      final updatedBook = Book(
-                        id: book.id, title: book.title, author: book.author, publisher: book.publisher, genre: book.genre,
-                        pageCount: book.pageCount, price: book.price, dateAcquired: book.dateAcquired,
-                        currentPage: newPage, isRead: isFinished || newPage == book.pageCount, imagePath: book.imagePath,
-                        startDate: book.startDate, targetDate: book.targetDate,
-                        rating: (isFinished || book.isRead) ? currentRating : book.rating,
-                        review: (isFinished || book.isRead) ? reviewController.text : book.review,
+                      final finishing = isFinished || book.isRead;
+                      final updatedBook = book.copyWith(
+                        currentPage: newPage,
+                        isRead: isFinished || newPage == book.pageCount,
+                        rating: finishing ? currentRating : null,
+                        review: finishing ? reviewController.text : null,
                         isPaused: false,
-                        ebookPath: book.ebookPath,
                       );
                       
                       await DatabaseHelper.instance.update(updatedBook);
@@ -592,6 +571,41 @@ class _BooksScreenState extends State<BooksScreen> {
 
   void _showReadingDialog(BuildContext context, Book book) {
     _showLogReadingDialog(context, book);
+  }
+
+  Future<void> _confirmAndDeleteBook(Book book) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Excluir livro?"),
+        content: Text("\"${book.title}\" será removido junto com suas citações, histórico de leitura e arquivos locais (capa e ebook). Esta ação não pode ser desfeita."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancelar")),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Excluir"),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    // Remove os arquivos associados (melhor esforço) para não deixar lixo no armazenamento
+    for (final filePath in [book.imagePath, book.ebookPath]) {
+      if (filePath == null) continue;
+      try {
+        final f = File(filePath);
+        if (await f.exists()) await f.delete();
+      } catch (_) {}
+    }
+
+    await DatabaseHelper.instance.delete(book.id!);
+    searchController.clear();
+    await refreshBooks();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Livro excluído.")));
+    }
   }
 
   void _showBookForm(BuildContext context, {Book? book}) {
@@ -950,7 +964,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   Text("${(currentBook.progress * 100).toInt()}% Concluído (${currentBook.currentPage}/${currentBook.pageCount})"),
                   
                   if (currentBook.isPaused)
-                    Container(margin: const EdgeInsets.only(top: 10), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(5)), child: const Row(children: [Icon(Icons.pause, size: 16, color: Colors.orange), SizedBox(width: 5), Text("Leitura Pausada", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold))])),
+                    Container(margin: const EdgeInsets.only(top: 10), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(5)), child: const Row(children: [Icon(Icons.pause, size: 16, color: Colors.orange), SizedBox(width: 5), Text("Leitura Pausada", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold))])),
 
                   // --- BOTÃO DE LER EBOOK (GRANDE) ---
                   if (currentBook.ebookPath != null) ...[
@@ -1074,14 +1088,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
               FilledButton(
                 onPressed: () async {
-                  final updatedBook = Book(
-                    id: book.id, title: book.title, author: book.author, publisher: book.publisher, genre: book.genre,
-                    pageCount: book.pageCount, price: book.price, dateAcquired: book.dateAcquired,
-                    currentPage: book.currentPage, isRead: book.isRead, imagePath: book.imagePath,
-                    startDate: DateTime.now(),
-                    targetDate: targetDate,
-                    ebookPath: book.ebookPath, // Mantém o ebook
-                  );
+                  final updatedBook = book.copyWith(startDate: DateTime.now(), targetDate: targetDate);
                   await DatabaseHelper.instance.update(updatedBook);
                   _refreshBook(); // <--- CORREÇÃO: Usando _refreshBook() (singular)
                   if (mounted) Navigator.pop(ctx);
@@ -1136,26 +1143,7 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
   // Salva o progresso no banco de dados local
   Future<void> _updateBookProgress(int page) async {
     if (page != widget.book.currentPage) {
-      final updatedBook = Book(
-        id: widget.book.id,
-        title: widget.book.title,
-        author: widget.book.author,
-        publisher: widget.book.publisher,
-        genre: widget.book.genre,
-        pageCount: widget.book.pageCount,
-        price: widget.book.price,
-        dateAcquired: widget.book.dateAcquired,
-        currentPage: page,
-        isRead: widget.book.isRead,
-        imagePath: widget.book.imagePath,
-        rating: widget.book.rating,
-        review: widget.book.review,
-        startDate: widget.book.startDate,
-        targetDate: widget.book.targetDate,
-        isPaused: widget.book.isPaused,
-        lastPauseDate: widget.book.lastPauseDate,
-        ebookPath: widget.book.ebookPath,
-      );
+      final updatedBook = widget.book.copyWith(currentPage: page);
       await DatabaseHelper.instance.update(updatedBook);
     }
   }
