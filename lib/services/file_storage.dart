@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -50,6 +51,13 @@ class FileStorage {
   }
 
   Future<String> saveCover(String sourcePath) => _copyIn(sourcePath, coversFolder, fallbackExt: '.jpg');
+
+  /// Grava bytes de uma capa baixada da internet (nome único, caminho relativo).
+  Future<String> saveCoverBytes(Uint8List bytes, {String ext = '.jpg'}) async {
+    final relative = p.join(coversFolder, '${DateTime.now().microsecondsSinceEpoch}$ext');
+    await File(p.join(baseDir, relative)).writeAsBytes(bytes, flush: true);
+    return relative;
+  }
 
   Future<String> saveEbook(String sourcePath, String extension) =>
       _copyIn(sourcePath, ebooksFolder, forceExt: '.${extension.toLowerCase()}');

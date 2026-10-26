@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestordelivros/services/file_storage.dart';
 import 'package:path/path.dart' as p;
@@ -37,5 +38,12 @@ void main() {
     expect(storage.exists(rel), true);
     expect(await storage.migrateLegacy('covers/ja_relativo.jpg', FileStorage.coversFolder), isNull);
     await ext.delete(recursive: true);
+  });
+
+  test('saveCoverBytes grava capa baixada com nome único e caminho relativo', () async {
+    final rel = await storage.saveCoverBytes(Uint8List.fromList([1, 2, 3]), ext: '.png');
+    expect(p.isRelative(rel), true);
+    expect(rel, endsWith('.png'));
+    expect(await File(storage.resolve(rel)!).readAsBytes(), [1, 2, 3]);
   });
 }

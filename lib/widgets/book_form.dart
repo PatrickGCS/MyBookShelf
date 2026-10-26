@@ -8,7 +8,9 @@ import 'package:path/path.dart' as path;
 import 'package:pdfrx/pdfrx.dart';
 import '../data/database_helper.dart';
 import '../models/book.dart';
+import '../services/book_lookup_service.dart';
 import '../services/file_storage.dart';
+import 'cover_search_sheet.dart';
 
 void showBookForm(BuildContext context, {Book? book, required VoidCallback onChanged}) {
   final rootContext = context;
@@ -50,7 +52,7 @@ void showBookForm(BuildContext context, {Book? book, required VoidCallback onCha
                           final ImagePicker picker = ImagePicker();
                           showModalBottomSheet(context: context, builder: (bsContext) { return SafeArea(child: Wrap(children: [ListTile(leading: const Icon(Icons.photo_camera), title: const Text('Câmera'), onTap: () async { final XFile? photo = await picker.pickImage(source: ImageSource.camera); if (photo != null) { final saved = await FileStorage.instance.saveCover(photo.path); setModalState(() => currentImagePath = saved); } if (bsContext.mounted) Navigator.pop(bsContext); }), ListTile(leading: const Icon(Icons.photo_library), title: const Text('Galeria'), onTap: () async { final XFile? photo = await picker.pickImage(source: ImageSource.gallery); if (photo != null) { final saved = await FileStorage.instance.saveCover(photo.path); setModalState(() => currentImagePath = saved); } if (bsContext.mounted) Navigator.pop(bsContext); })])); });
                         },
-                        child: Container(height: 120, width: 80, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey), image: currentImagePath != null ? DecorationImage(image: FileImage(File(currentImagePath!)), fit: BoxFit.cover) : null), child: currentImagePath == null ? const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo, size: 30, color: Colors.grey), Text("Capa", style: TextStyle(fontSize: 10))]) : null),
+                        child: Container(height: 120, width: 80, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey), image: currentImagePath != null ? DecorationImage(image: ResizeImage(FileImage(File(FileStorage.instance.resolve(currentImagePath)!)), width: 240), fit: BoxFit.cover) : null), child: currentImagePath == null ? const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo, size: 30, color: Colors.grey), Text("Capa", style: TextStyle(fontSize: 10))]) : null),
                       ),
                       const SizedBox(width: 15),
                       // --- BOTÃO EBOOK (NOVO) ---
@@ -180,6 +182,58 @@ void showBookForm(BuildContext context, {Book? book, required VoidCallback onCha
                   TextField(controller: titleController, decoration: const InputDecoration(labelText: "Título")),
                   const SizedBox(height: 10),
                   TextField(controller: authorController, decoration: const InputDecoration(labelText: "Autor")),
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.image_search),
+                      label: const Text("Buscar capa e dados online"),
+                      onPressed: () async {
+                        final title = titleController.text.trim();
+                        if (title.isEmpty) {
+                          ScaffoldMessenger.of(rootContext).showSnackBar(const SnackBar(content: Text("Digite o título para buscar.")));
+                          return;
+                        }
+                        final lookup = BookLookupService();
+                        try {
+                          final picked = await showCoverSearch(context, service: lookup, title: title, author: authorController.text);
+                          if (picked == null) return;
+
+                          // Baixa a capa (tenta as URLs em ordem) e guarda no armazenamento do app
+                          final cover = picked.hasCover ? await lookup.downloadCover(picked) : null;
+                          String? savedCover;
+                          if (cover != null) {
+                            savedCover = await FileStorage.instance.saveCoverBytes(cover.bytes, ext: cover.extension);
+                          }
+
+                          setModalState(() {
+                            if (savedCover != null) {
+                              // Descarta a capa baixada anteriormente nesta tela, se não for a original do livro
+                              if (currentImagePath != null && currentImagePath != book?.imagePath) {
+                                FileStorage.instance.delete(currentImagePath);
+                              }
+                              currentImagePath = savedCover;
+                            }
+                            // Preenche apenas campos vazios; nunca sobrescreve o que o usuário digitou
+                            if (authorController.text.trim().isEmpty && picked.authorText.isNotEmpty) authorController.text = picked.authorText;
+                            if (publisherController.text.trim().isEmpty && picked.publisher != null) publisherController.text = picked.publisher!;
+                            if (genreController.text.trim().isEmpty && picked.genre != null) genreController.text = picked.genre!;
+                            if ((int.tryParse(pagesController.text) ?? 0) == 0 && picked.pageCount != null) pagesController.text = picked.pageCount.toString();
+                          });
+
+                          if (rootContext.mounted) {
+                            ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
+                              content: Text(picked.hasCover && cover == null
+                                  ? "Dados preenchidos, mas não foi possível baixar a capa."
+                                  : (cover == null ? "Dados preenchidos (este livro não tem capa online)." : "Capa e dados aplicados!")),
+                            ));
+                          }
+                        } finally {
+                          lookup.dispose();
+                        }
+                      },
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   TextField(controller: publisherController, decoration: const InputDecoration(labelText: "Editora")),
                   const SizedBox(height: 10),
