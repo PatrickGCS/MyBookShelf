@@ -1,6 +1,6 @@
-# 📚 Minha Leitura - Gestor de Biblioteca Pessoal
+# 📚 MyBookShelf - Gestor de Biblioteca Pessoal
 
-O **Minha Leitura** é um aplicativo desenvolvido em Flutter para ajudar leitores a organizarem sua coleção de livros e, principalmente, manterem o hábito de leitura em dia através de um sistema de metas inteligentes.
+O **MyBookShelf** é um aplicativo desenvolvido em Flutter para ajudar leitores a organizarem sua coleção de livros e, principalmente, manterem o hábito de leitura em dia através de um sistema de metas inteligentes.
 
 O app funciona como uma biblioteca virtual (catálogo) e também como um "Personal Trainer" de leitura, calculando o ritmo necessário para terminar seus livros no prazo desejado.
 
@@ -69,8 +69,8 @@ Pré-requisitos: Ter o [Flutter SDK](https://docs.flutter.dev/get-started/instal
 1. **Clone o repositório:**
 
    ```
-   git clone [https://github.com/seu-usuario/minha-leitura.git](https://github.com/seu-usuario/minha-leitura.git)
-   cd gestordelivros
+   git clone https://github.com/PatrickGCS/MyBookShelf.git
+   cd MyBookShelf
    ```
 2. **Baixe as dependências:**
 
@@ -105,7 +105,7 @@ Sinta-se à vontade para fazer um fork deste projeto e enviar Pull Requests. Sug
 
 Este projeto está licenciado sob a licença **Creative Commons Atribuição-NãoComercial-CompartilhaIgual 4.0 Internacional (CC BY-NC-SA 4.0)** .
 
-<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Licença Creative Commons" style="border-width:0" src="https://www.google.com/search?q=https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png" /></a>
+<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Licença Creative Commons" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png" /></a>
 
 ### ✅ O que você PODE fazer:
 

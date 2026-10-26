@@ -94,37 +94,75 @@ class Book {
     );
   }
 
+  /// Cria uma cópia alterando apenas os campos informados.
+  /// Use os parâmetros `clear*` para anular campos opcionais.
+  Book copyWith({
+    int? id, String? title, String? author, String? publisher, String? genre,
+    int? pageCount, int? currentPage, double? price, bool? isRead,
+    DateTime? dateAcquired, DateTime? startDate, DateTime? targetDate,
+    String? imagePath, double? rating, String? review,
+    bool? isPaused, DateTime? lastPauseDate, String? ebookPath,
+    bool clearTargetDate = false, bool clearLastPauseDate = false,
+    bool clearImagePath = false, bool clearEbookPath = false,
+  }) {
+    return Book(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      author: author ?? this.author,
+      publisher: publisher ?? this.publisher,
+      genre: genre ?? this.genre,
+      pageCount: pageCount ?? this.pageCount,
+      currentPage: currentPage ?? this.currentPage,
+      price: price ?? this.price,
+      isRead: isRead ?? this.isRead,
+      dateAcquired: dateAcquired ?? this.dateAcquired,
+      startDate: startDate ?? this.startDate,
+      targetDate: clearTargetDate ? null : (targetDate ?? this.targetDate),
+      imagePath: clearImagePath ? null : (imagePath ?? this.imagePath),
+      rating: rating ?? this.rating,
+      review: review ?? this.review,
+      isPaused: isPaused ?? this.isPaused,
+      lastPauseDate: clearLastPauseDate ? null : (lastPauseDate ?? this.lastPauseDate),
+      ebookPath: clearEbookPath ? null : (ebookPath ?? this.ebookPath),
+    );
+  }
+
   double get progress => pageCount == 0 ? 0 : currentPage / pageCount;
 
-  Color getUrgencyColor() {
-    if (isRead) return Colors.green;
-    if (isPaused) return Colors.grey; 
-    if (targetDate == null || startDate == null) return Colors.blue;
+  /// Dias restantes até a meta, comparando apenas datas (sem horário).
+  /// Retorna 0 no próprio dia da meta e valor negativo se já passou.
+  int daysLeft({DateTime? now}) {
+    final today = DateUtils.dateOnly(now ?? DateTime.now());
+    return DateUtils.dateOnly(targetDate!).difference(today).inDays;
+  }
 
-    final now = DateTime.now();
-    if (targetDate!.isBefore(now)) return Colors.red;
-
+  /// Páginas por dia necessárias para cumprir a meta (conta o dia da meta).
+  int requiredPace({DateTime? now}) {
     final pagesLeft = pageCount - currentPage;
-    final daysLeft = targetDate!.difference(now).inDays + 1;
-    final requiredPace = pagesLeft / daysLeft;
+    return (pagesLeft / (daysLeft(now: now) + 1)).ceil();
+  }
 
-    if (requiredPace > 100 || requiredPace > (pageCount * 0.15)) return Colors.red; 
-    if (requiredPace > 30) return Colors.orange;
+  bool isOverdue({DateTime? now}) =>
+      !isRead && !isPaused && startDate != null && targetDate != null && daysLeft(now: now) < 0;
 
+  Color getUrgencyColor({DateTime? now}) {
+    if (isRead) return Colors.green;
+    if (isPaused) return Colors.grey;
+    if (targetDate == null || startDate == null) return Colors.blue;
+    if (isOverdue(now: now)) return Colors.red;
+
+    final pace = requiredPace(now: now);
+    if (pace > 100) return Colors.red;
+    if (pace > 30) return Colors.orange;
     return Colors.green;
   }
 
-  String getUrgencyText() {
+  String getUrgencyText({DateTime? now}) {
     if (isRead) return "Concluído";
     if (isPaused) return "Pausado";
     if (startDate == null) return "Não iniciado";
     if (targetDate == null) return "Sem meta";
-    
-    final daysLeft = targetDate!.difference(DateTime.now()).inDays;
-    if (daysLeft < 0) return "Atrasado!";
-    
-    final pagesLeft = pageCount - currentPage;
-    final pace = (pagesLeft / (daysLeft + 1)).ceil();
-    return "$pace pág/dia";
+    if (isOverdue(now: now)) return "Atrasado!";
+    return "${requiredPace(now: now)} pág/dia";
   }
 }
