@@ -5,6 +5,7 @@ import 'app.dart';
 import 'providers/books_provider.dart';
 import 'services/file_storage.dart';
 import 'services/legacy_migration.dart';
+import 'services/reminder_service.dart';
 import 'services/settings_service.dart';
 import 'theme/app_theme.dart';
 
@@ -17,6 +18,11 @@ void main() async {
     await migrateLegacyFiles();
   } catch (e) {
     debugPrint('Migração de arquivos: $e');
+  }
+  try {
+    await ReminderService.instance.rescheduleIfEnabled();
+  } catch (e) {
+    debugPrint('Lembrete: $e');
   }
   runApp(
     ChangeNotifierProvider(

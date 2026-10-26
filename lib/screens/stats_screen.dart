@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/database_helper.dart';
+import '../services/reminder_service.dart';
+import '../services/settings_service.dart';
 import '../services/stats_service.dart';
 
 class StatsScreen extends StatefulWidget {
@@ -39,7 +41,9 @@ class _StatsScreenState extends State<StatsScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 _StreakCard(stats: s),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                const _ReminderCard(),
+                const SizedBox(height: 8),
                 _SummaryGrid(stats: s),
                 const SizedBox(height: 24),
                 Text('Páginas por dia (últimos 14 dias)', style: Theme.of(context).textTheme.titleMedium),
@@ -228,6 +232,83 @@ class _GenreBars extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ReminderCard extends StatefulWidget {
+  const _ReminderCard();
+
+  @override
+  State<_ReminderCard> createState() => _ReminderCardState();
+}
+
+class _ReminderCardState extends State<_ReminderCard> {
+  bool _enabled = false;
+  TimeOfDay _time = const TimeOfDay(hour: 20, minute: 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final enabled = await SettingsService.loadReminderEnabled();
+    final time = await SettingsService.loadReminderTime();
+    if (mounted) setState(() { _enabled = enabled; _time = time; });
+  }
+
+  void _msg(String text) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _toggle(bool value) async {
+    try {
+      if (value) {
+        final ok = await ReminderService.instance.enable(_time);
+        if (!ok) {
+          _msg('Permissão de notificações negada. Ative nas configurações do aparelho.');
+          return;
+        }
+        _msg('Lembrete diário ativado para ${_time.format(context)}.');
+      } else {
+        await ReminderService.instance.disable();
+      }
+      if (mounted) setState(() => _enabled = value);
+    } catch (e) {
+      _msg('Não foi possível configurar o lembrete: $e');
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(context: context, initialTime: _time);
+    if (picked == null) return;
+    setState(() => _time = picked);
+    if (_enabled) {
+      try {
+        await ReminderService.instance.enable(picked);
+      } catch (e) {
+        _msg('Não foi possível reagendar: $e');
+      }
+    } else {
+      await SettingsService.saveReminder(enabled: false, time: picked);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: const Icon(Icons.notifications_active),
+        title: const Text('Lembrete diário de leitura'),
+        subtitle: GestureDetector(
+          onTap: _pickTime,
+          child: Text('Todos os dias às ${_time.format(context)} (toque para mudar)'),
+        ),
+        trailing: Switch(value: _enabled, onChanged: _toggle),
+      ),
     );
   }
 }
