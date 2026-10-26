@@ -22,12 +22,14 @@ dependencies:
   # --- NOVAS DEPENDÊNCIAS PARA EBOOK ---
   pdfrx: ^1.1.4 
   epub_view: ^3.0.1
-  permission_handler: ^11.3.0
+  path_provider: ^2.1.0
+  archive: ^3.6.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  sqflite_common_ffi: ^2.3.0
   # Mantendo downgrade para resolver conflito com epub_view
   flutter_launcher_icons: ^0.11.0
 
