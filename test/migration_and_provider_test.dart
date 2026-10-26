@@ -65,4 +65,73 @@ void main() {
     provider.setQuery('');
     expect(provider.filteredBooks.length, 2);
   });
+
+  group('filtros e ordenação', providerFilterTests);
+}
+
+// ---- filtros, ordenação e busca sem acento ----
+void providerFilterTests() {
+  Book b(String t, String a, {String g = 'Romance', bool read = false, DateTime? start, bool paused = false, double rating = 0, int cur = 0, DateTime? target}) =>
+      Book(
+        title: t, author: a, publisher: 'P', genre: g, pageCount: 100, currentPage: cur, price: 1,
+        isRead: read, dateAcquired: DateTime(2026, 1, 1), startDate: start, isPaused: paused,
+        rating: rating, targetDate: target,
+      );
+
+  late Directory tmp;
+  late BooksProvider provider;
+
+  setUp(() async {
+    tmp = await Directory.systemTemp.createTemp('mbs_flt_');
+    await DatabaseHelper.instance.useDatabaseAt(p.join(tmp.path, 'f.db'));
+    final db = DatabaseHelper.instance;
+    await db.create(b('Sertão Veredas', 'Guimarães Rosa', g: 'Clássico', read: true, rating: 5));
+    await db.create(b('Ação Rápida', 'Zé', g: 'Aventura', start: DateTime(2026, 2, 1), cur: 40, target: DateTime(2026, 12, 1)));
+    await db.create(b('Zebra', 'Ana', paused: true, start: DateTime(2026, 2, 1), target: DateTime(2026, 11, 1)));
+    await db.create(b('Novo', 'Bia'));
+    provider = BooksProvider();
+    await provider.load();
+  });
+  tearDown(() async {
+    await DatabaseHelper.instance.close();
+    await tmp.delete(recursive: true);
+  });
+
+  test('busca ignora acentos e maiúsculas', () {
+    provider.setQuery('SERTAO');
+    expect(provider.filteredBooks.single.title, 'Sertão Veredas');
+    provider.setQuery('acao');
+    expect(provider.filteredBooks.single.title, 'Ação Rápida');
+    provider.setQuery('guimaraes');
+    expect(provider.filteredBooks.length, 1);
+  });
+
+  test('filtros de status e contagem', () {
+    expect(provider.countFor(StatusFilter.read), 1);
+    expect(provider.countFor(StatusFilter.reading), 1);
+    expect(provider.countFor(StatusFilter.paused), 1);
+    expect(provider.countFor(StatusFilter.notStarted), 1);
+    provider.setStatus(StatusFilter.paused);
+    expect(provider.filteredBooks.single.title, 'Zebra');
+  });
+
+  test('filtro por gênero', () {
+    provider.setGenre('Aventura');
+    expect(provider.filteredBooks.single.title, 'Ação Rápida');
+    expect(provider.genres, containsAll(['Aventura', 'Clássico', 'Romance']));
+  });
+
+  test('ordenação por título ignora acento e alterna direção', () {
+    expect(provider.filteredBooks.map((e) => e.title).first, 'Ação Rápida');
+    provider.setSort(BookSort.title); // mesma opção => inverte
+    expect(provider.filteredBooks.first.title, 'Zebra');
+  });
+
+  test('ordenação por prazo deixa livros sem meta no fim', () {
+    provider.setSort(BookSort.deadline);
+    final titles = provider.filteredBooks.map((e) => e.title).toList();
+    expect(titles.take(2), ['Zebra', 'Ação Rápida']);
+    provider.setSort(BookSort.deadline); // inverte
+    expect(provider.filteredBooks.last.targetDate, isNull);
+  });
 }

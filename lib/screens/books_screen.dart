@@ -17,6 +17,7 @@ import '../services/legacy_migration.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/book_form.dart';
+import '../widgets/library_filters.dart';
 import '../widgets/log_reading_dialog.dart';
 import '../widgets/quote_dialog.dart';
 import '../widgets/start_reading_dialog.dart';
@@ -141,6 +142,10 @@ class _BooksScreenState extends State<BooksScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<BooksProvider>();
+    if (provider.query.isEmpty && searchController.text.isNotEmpty) {
+      // 'Limpar' filtros esvazia a busca no provider: refletir no campo
+      WidgetsBinding.instance.addPostFrameCallback((_) => searchController.clear());
+    }
     final allBooks = provider.allBooks;
     final filteredBooks = provider.filteredBooks;
     final isLoading = provider.isLoading;
@@ -183,6 +188,7 @@ class _BooksScreenState extends State<BooksScreen> {
               ),
             ),
           ),
+          const LibraryFilters(),
           
           // DASHBOARD (ESTATÍSTICAS)
           Padding(
