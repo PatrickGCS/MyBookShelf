@@ -26,10 +26,17 @@ class BookCover extends StatelessWidget {
       topRight: Radius.circular(width * 0.19),
       bottomRight: Radius.circular(width * 0.19),
     );
-    final resolvedPath = FileStorage.instance.resolve(book.imagePath);
-    final String? imageFile =
-        (resolvedPath != null && File(resolvedPath).existsSync()) ? resolvedPath : null;
+    final imageFile = FileStorage.instance.resolve(book.imagePath);
     final colors = _gradients[book.title.length % _gradients.length];
+    final placeholder = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colors,
+        ),
+      ),
+    );
 
     return Semantics(
       image: true,
@@ -46,17 +53,15 @@ class BookCover extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            placeholder,
             if (imageFile != null)
-              Image.file(File(imageFile), fit: BoxFit.cover, cacheWidth: 300)
-            else
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: colors,
-                  ),
-                ),
+              Image.file(
+                File(imageFile),
+                fit: BoxFit.cover,
+                cacheWidth: 300,
+                gaplessPlayback: true,
+                // Arquivo ausente: mantém o gradiente (evita checar o disco no build)
+                errorBuilder: (_, __, ___) => placeholder,
               ),
             Positioned(
               left: width * 0.11,

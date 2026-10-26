@@ -15,6 +15,12 @@ class MbsBackground extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
+        // Camada estática isolada: não é repintada junto com o conteúdo
+        // (rolagem, transições de tela).
+        RepaintBoundary(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
         DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -33,6 +39,9 @@ class MbsBackground extends StatelessWidget {
           bottom: -140,
           left: -100,
           child: _Glow(color: p.blobOrange.withValues(alpha: p.blobOrangeOpacity), size: 420),
+        ),
+            ],
+          ),
         ),
         child,
       ],
@@ -70,6 +79,7 @@ class GlassCard extends StatelessWidget {
     this.onTap,
     this.soft = false,
     this.solid = false,
+    this.blur = false,
   });
 
   final Widget child;
@@ -80,8 +90,13 @@ class GlassCard extends StatelessWidget {
   /// Versão mais leve (cards de apoio).
   final bool soft;
 
-  /// Quase opaco, para diálogos e menus.
+  /// Quase opaco, para diálogos e menus (usa desfoque real).
   final bool solid;
+
+  /// Desfoque real do que está atrás. Custa caro (uma passada extra por
+  /// quadro por card); sobre o fundo liso do app o visual é igual sem ele,
+  /// então só diálogos (`solid`) o usam por padrão.
+  final bool blur;
 
   @override
   Widget build(BuildContext context) {
@@ -100,24 +115,30 @@ class GlassCard extends StatelessWidget {
             ),
           );
 
-    return DecoratedBox(
+    final surface = DecoratedBox(
       decoration: BoxDecoration(
+        color: fill,
         borderRadius: r,
-        boxShadow: [BoxShadow(color: p.shadow, blurRadius: 24, offset: const Offset(0, 10))],
+        border: Border.all(color: p.glassBorder),
       ),
-      child: ClipRRect(
-        borderRadius: r,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: p.glassSigma, sigmaY: p.glassSigma),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: fill,
-              borderRadius: r,
-              border: Border.all(color: p.glassBorder),
-            ),
-            child: inner,
-          ),
+      child: inner,
+    );
+
+    return RepaintBoundary(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: r,
+          boxShadow: [BoxShadow(color: p.shadow, blurRadius: 16, offset: const Offset(0, 8))],
         ),
+        child: (solid || blur)
+            ? ClipRRect(
+                borderRadius: r,
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: p.glassSigma, sigmaY: p.glassSigma),
+                  child: surface,
+                ),
+              )
+            : surface,
       ),
     );
   }
@@ -134,20 +155,15 @@ class GlassCircle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = MbsPalette.of(context);
-    return ClipOval(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: p.glassSigma, sigmaY: p.glassSigma),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: p.glassFill,
-            border: Border.all(color: p.glassBorder),
-          ),
-          child: Icon(icon, size: iconSize ?? size * 0.45, color: color ?? p.text),
-        ),
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: p.glassFill,
+        border: Border.all(color: p.glassBorder),
       ),
+      child: Icon(icon, size: iconSize ?? size * 0.45, color: color ?? p.text),
     );
   }
 }

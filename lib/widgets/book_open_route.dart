@@ -67,7 +67,7 @@ class BookOpenRoute<T> extends PageRoute<T> {
         return Stack(
           fit: StackFit.expand,
           children: [
-            Opacity(opacity: readerOpacity, child: readerChild),
+            Opacity(opacity: readerOpacity, child: RepaintBoundary(child: readerChild)),
             if (t < 0.999) IgnorePointer(child: _BookOverlay(t: t, cover: cover)),
           ],
         );
