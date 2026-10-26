@@ -227,6 +227,7 @@ class SquircleButton extends StatelessWidget {
     late final Color iconColor;
     late final Color bar;
     BoxDecoration deco;
+    List<BoxShadow>? shadow;
     const radius = BorderRadius.all(Radius.circular(15));
 
     switch (tone) {
@@ -242,8 +243,8 @@ class SquircleButton extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: p.action,
           ),
-          boxShadow: [BoxShadow(color: p.action[1].withValues(alpha: 0.4), blurRadius: 18, offset: const Offset(0, 8))],
         );
+        shadow = [BoxShadow(color: p.action[1].withValues(alpha: 0.4), blurRadius: 18, offset: const Offset(0, 8))];
       case MbsTone.orange:
         border = p.accent.withValues(alpha: 0.5);
         iconColor = p.accentIcon;
@@ -278,7 +279,11 @@ class SquircleButton extends StatelessWidget {
         );
     }
 
-    final body = SizedBox(
+    // A sombra fica FORA do Material: o Ink recorta o que desenha ao retângulo
+    // do Material, o que deixava a sombra cortada em quadrado.
+    final body = DecoratedBox(
+      decoration: BoxDecoration(borderRadius: radius, boxShadow: shadow),
+      child: SizedBox(
       width: 46,
       height: 46,
       child: Material(
@@ -305,6 +310,7 @@ class SquircleButton extends StatelessWidget {
           ),
         ),
       ),
+      ),
     );
     if (tooltip == null) return body;
     return Tooltip(message: tooltip!, child: body);
@@ -330,7 +336,12 @@ class MbsGradientButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = MbsPalette.of(context);
     final radius = BorderRadius.circular(height / 2);
-    return SizedBox(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: [BoxShadow(color: p.action[1].withValues(alpha: 0.4), blurRadius: 24, offset: const Offset(0, 10))],
+      ),
+      child: SizedBox(
       height: height,
       width: double.infinity,
       child: Material(
@@ -344,7 +355,6 @@ class MbsGradientButton extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: p.action,
             ),
-            boxShadow: [BoxShadow(color: p.action[1].withValues(alpha: 0.4), blurRadius: 24, offset: const Offset(0, 10))],
           ),
           child: InkWell(
             borderRadius: radius,
@@ -362,6 +372,7 @@ class MbsGradientButton extends StatelessWidget {
           ),
         ),
       ),
+      ),
     );
   }
 }
@@ -377,7 +388,12 @@ class MbsFab extends StatelessWidget {
     final p = MbsPalette.of(context);
     return Tooltip(
       message: tooltip,
-      child: SizedBox(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: p.action[1].withValues(alpha: 0.45), blurRadius: 26, offset: const Offset(0, 12))],
+        ),
+        child: SizedBox(
         width: 60,
         height: 60,
         child: Material(
@@ -391,7 +407,6 @@ class MbsFab extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: p.action,
               ),
-              boxShadow: [BoxShadow(color: p.action[1].withValues(alpha: 0.45), blurRadius: 26, offset: const Offset(0, 12))],
             ),
             child: InkResponse(
               onTap: onPressed,
@@ -400,6 +415,7 @@ class MbsFab extends StatelessWidget {
               child: Icon(Icons.add_rounded, size: 30, color: p.onAction),
             ),
           ),
+        ),
         ),
       ),
     );
