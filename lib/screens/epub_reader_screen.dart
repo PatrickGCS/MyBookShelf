@@ -52,9 +52,13 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with WidgetsBinding
     super.dispose();
   }
 
-  void _onChapterChanged(EpubChapterViewValue? value) {
+  // O tipo do parâmetro (EpubChapterViewValue) não é exportado pelo epub_view;
+  // `dynamic` aceita o callback sem depender de import interno do pacote.
+  void _onChapterChanged(dynamic value) {
     if (value == null) return;
-    _currentChapter = value.chapterNumber;
+    final number = value.chapterNumber;
+    if (number is! int) return;
+    _currentChapter = number;
     _saveDebounce?.cancel();
     _saveDebounce = Timer(const Duration(seconds: 1), _saveProgress);
   }
