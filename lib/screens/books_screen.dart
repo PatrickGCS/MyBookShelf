@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'book_details_screen.dart';
+import 'stats_screen.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
@@ -163,6 +164,11 @@ class _BooksScreenState extends State<BooksScreen> {
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.insights),
+            tooltip: 'Estatísticas',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatsScreen())),
+          ),
           IconButton(icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode), tooltip: isDark ? 'Tema claro' : 'Tema escuro', onPressed: _toggleTheme),
           PopupMenuButton<String>(
             tooltip: 'Backup',

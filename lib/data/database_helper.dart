@@ -116,6 +116,7 @@ class DatabaseHelper {
   Future<int> update(Book book) async { final db = await instance.database; return await db.update('books', book.toMap(), where: 'id = ?', whereArgs: [book.id]); }
   Future<int> delete(int id) async { final db = await instance.database; return await db.delete('books', where: 'id = ?', whereArgs: [id]); }
   Future<int> addSession(ReadingSession session) async { final db = await instance.database; return await db.insert('reading_sessions', session.toMap()); }
+  Future<List<ReadingSession>> getAllSessions() async { final db = await instance.database; final result = await db.query('reading_sessions', orderBy: 'date ASC'); return result.map((json) => ReadingSession.fromMap(json)).toList(); }
   Future<List<ReadingSession>> getHistory(int bookId) async { final db = await instance.database; final result = await db.query('reading_sessions', where: 'bookId = ?', whereArgs: [bookId], orderBy: 'date DESC'); return result.map((json) => ReadingSession.fromMap(json)).toList(); }
 
   Future<int> addQuote(Quote quote) async { 
