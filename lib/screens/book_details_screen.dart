@@ -114,7 +114,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (currentBook.imagePath != null)
-              Container(height: 250, width: double.infinity, decoration: BoxDecoration(image: DecorationImage(image: FileImage(File(FileStorage.instance.resolve(currentBook.imagePath)!)), fit: BoxFit.cover)))
+              Semantics(image: true, label: 'Capa de ${currentBook.title}', child: Container(height: 250, width: double.infinity, decoration: BoxDecoration(image: DecorationImage(image: ResizeImage(FileImage(File(FileStorage.instance.resolve(currentBook.imagePath)!)), width: 1080), fit: BoxFit.cover))))
             else
               Container(height: 150, width: double.infinity, color: isDark ? Colors.grey[800] : Colors.deepPurple[100], child: const Icon(Icons.menu_book, size: 80, color: Colors.deepPurple)),
             
@@ -132,7 +132,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   ],
 
                   const SizedBox(height: 10),
-                  LinearProgressIndicator(value: currentBook.progress, minHeight: 10, borderRadius: BorderRadius.circular(5), color: currentBook.getUrgencyColor(), backgroundColor: isDark ? Colors.grey[700] : Colors.grey[200]),
+                  LinearProgressIndicator(semanticsLabel: 'Progresso da leitura', value: currentBook.progress, minHeight: 10, borderRadius: BorderRadius.circular(5), color: currentBook.getUrgencyColor(), backgroundColor: isDark ? Colors.grey[700] : Colors.grey[200]),
                   const SizedBox(height: 5),
                   Text("${(currentBook.progress * 100).toInt()}% Concluído (${currentBook.currentPage}/${currentBook.pageCount})"),
                   
@@ -198,6 +198,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                             subtitle: Text("Página: ${quote.page}"),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                              tooltip: 'Excluir citação',
                               onPressed: () => _deleteQuote(quote.id!),
                             ),
                           ),

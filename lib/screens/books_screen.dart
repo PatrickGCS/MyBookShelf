@@ -14,6 +14,7 @@ import '../providers/books_provider.dart';
 import '../services/backup_service.dart';
 import '../services/file_storage.dart';
 import '../services/legacy_migration.dart';
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/book_form.dart';
 import '../widgets/log_reading_dialog.dart';
@@ -132,7 +133,9 @@ class _BooksScreenState extends State<BooksScreen> {
 
   // --- ALTERNAR TEMA ---
   void _toggleTheme() {
-    themeNotifier.value = themeNotifier.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    final isDarkNow = Theme.of(context).brightness == Brightness.dark;
+    themeNotifier.value = isDarkNow ? ThemeMode.light : ThemeMode.dark;
+    SettingsService.saveThemeMode(themeNotifier.value);
   }
 
   @override
@@ -155,8 +158,9 @@ class _BooksScreenState extends State<BooksScreen> {
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         actions: [
-          IconButton(icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode), onPressed: _toggleTheme),
+          IconButton(icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode), tooltip: isDark ? 'Tema claro' : 'Tema escuro', onPressed: _toggleTheme),
           PopupMenuButton<String>(
+            tooltip: 'Backup',
             onSelected: (value) { if (value == 'export') _exportDatabase(); else if (value == 'import') _importDatabase(); },
             itemBuilder: (context) => [
               const PopupMenuItem(value: 'export', child: Row(children: [Icon(Icons.upload, color: Colors.blue), SizedBox(width: 10), Text("Exportar Backup")])),
@@ -244,7 +248,7 @@ class _BooksScreenState extends State<BooksScreen> {
 
                                           const SizedBox(height: 8),
                                           // Barra de Progresso Inteligente
-                                          LinearProgressIndicator(value: percent, minHeight: 8, backgroundColor: isDark ? Colors.grey[700] : Colors.grey[200], color: urgencyColor, borderRadius: BorderRadius.circular(3)),
+                                          LinearProgressIndicator(semanticsLabel: 'Progresso da leitura', value: percent, minHeight: 8, backgroundColor: isDark ? Colors.grey[700] : Colors.grey[200], color: urgencyColor, borderRadius: BorderRadius.circular(3)),
                                           const SizedBox(height: 6),
                                           
                                           // --- BOX COLORIDA DE META ---
@@ -266,6 +270,7 @@ class _BooksScreenState extends State<BooksScreen> {
                                     Column(
                                       children: [
                                         PopupMenuButton(
+                                          tooltip: 'Mais opções',
                                           icon: const Icon(Icons.more_vert, size: 20), padding: EdgeInsets.zero,
                                           onSelected: (value) async { if (value == 'delete') { await _confirmAndDeleteBook(book); } else if (value == 'edit') showBookForm(context, book: book, onChanged: _onBooksChanged); },
                                           itemBuilder: (context) => [ const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text("Editar")])), const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 18), SizedBox(width: 8), Text("Excluir", style: TextStyle(color: Colors.red))])), ],

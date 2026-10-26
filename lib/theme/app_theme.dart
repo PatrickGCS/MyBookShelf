@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Controle global do tema (claro/escuro/sistema).
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.system);
@@ -11,7 +10,7 @@ class AppTheme {
         useMaterial3: true,
         brightness: Brightness.light,
         colorScheme: ColorScheme.fromSeed(seedColor: _seed, brightness: Brightness.light),
-        textTheme: GoogleFonts.poppinsTextTheme(),
+        fontFamily: 'Poppins',
         inputDecorationTheme: InputDecorationTheme(border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true),
       );
 
@@ -19,7 +18,7 @@ class AppTheme {
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(seedColor: _seed, brightness: Brightness.dark),
-        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+        fontFamily: 'Poppins',
         inputDecorationTheme: InputDecorationTheme(border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true),
       );
 }
