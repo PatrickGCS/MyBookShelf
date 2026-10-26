@@ -1,4 +1,5 @@
 import 'package:sqflite/sqflite.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import '../models/book.dart';
 
@@ -8,16 +9,26 @@ class DatabaseHelper {
 
   DatabaseHelper._init();
 
+  static const dbFileName = 'livros_v9.db';
+  static String? _fullPathOverride;
+
+  /// Caminho completo do arquivo do banco.
+  Future<String> get dbPath async => _fullPathOverride ?? join(await getDatabasesPath(), dbFileName);
+
+  /// Permite apontar o banco para outro arquivo (testes).
+  @visibleForTesting
+  Future<void> useDatabaseAt(String fullPath) async {
+    await close();
+    _fullPathOverride = fullPath;
+  }
+
   Future<Database> get database async {
     if (_database != null) return _database!;
-    // Subi a versão para 2 para disparar o onUpgrade
-    _database = await _initDB('livros_v9.db'); 
+    _database = await _initDB(await dbPath);
     return _database!;
   }
 
-  Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+  Future<Database> _initDB(String path) async {
     // Adicionado onUpgrade para migração
     return await openDatabase(
       path,

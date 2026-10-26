@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,12 +9,15 @@ import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:pdfrx/pdfrx.dart'; // <--- Nova biblioteca PDF (sem conflitos)
 import 'package:epub_view/epub_view.dart';
-import 'package:permission_handler/permission_handler.dart'; // Adicionado para garantir acessos
 import 'data/database_helper.dart';
 import 'models/book.dart';
+import 'services/backup_service.dart';
+import 'services/file_storage.dart';
+import 'services/legacy_migration.dart';
 
 // --- CONTROLE DO TEMA (GLOBAL) ---
 final ValueNotifier<ThemeMode> _themeNotifier = ValueNotifier(ThemeMode.system);
@@ -21,6 +25,8 @@ final ValueNotifier<ThemeMode> _themeNotifier = ValueNotifier(ThemeMode.system);
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR', null);
+  await FileStorage.init();
+  try { await migrateLegacyFiles(); } catch (e) { debugPrint('Migração de arquivos: $e'); }
   runApp(const MyApp());
 }
 
@@ -105,57 +111,81 @@ class _BooksScreenState extends State<BooksScreen> {
     setState(() => filteredBooks = results);
   }
 
-  // --- EXPORTAR BACKUP ---
+  BackupService _backupService(String dbPath) =>
+      BackupService(dbPath: dbPath, storageDir: FileStorage.instance.baseDir);
+
+  void _snack(String msg) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  // --- EXPORTAR BACKUP (banco + capas + ebooks em um .mbs) ---
   Future<void> _exportDatabase() async {
     try {
-      final dbFolder = await getDatabasesPath();
-      final dbPath = path.join(dbFolder, 'livros_v9.db'); 
-      final dbFile = File(dbPath);
-
-      if (await dbFile.exists()) {
-        await Share.shareXFiles([XFile(dbPath)], text: 'Backup da Minha Biblioteca');
-      } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Erro: Banco de dados não encontrado.")));
+      final dbPath = await DatabaseHelper.instance.dbPath;
+      if (!await File(dbPath).exists()) {
+        _snack("Erro: Banco de dados não encontrado.");
+        return;
       }
+      // Fecha a conexão para garantir que o arquivo esteja consistente (reabre sob demanda)
+      await DatabaseHelper.instance.close();
+      final stamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final out = path.join((await getTemporaryDirectory()).path, 'MyBookShelf_$stamp.mbs');
+      await _backupService(dbPath).createBackup(out);
+      await Share.shareXFiles([XFile(out)], text: 'Backup do MyBookShelf');
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro ao exportar: $e")));
+      _snack("Erro ao exportar: $e");
     }
   }
 
   // --- IMPORTAR BACKUP ---
   Future<void> _importDatabase() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles();
-      if (result != null) {
-        File sourceFile = File(result.files.single.path!);
-        final dbFolder = await getDatabasesPath();
-        final dbPath = path.join(dbFolder, 'livros_v9.db'); 
+      final result = await FilePicker.platform.pickFiles();
+      final picked = result?.files.single.path;
+      if (picked == null) return;
 
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text("Restaurar Backup?"),
-              content: const Text("Isso apagará todos os livros atuais e substituirá pelo backup. Tem certeza?"),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
-                FilledButton(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    await DatabaseHelper.instance.close();
-                    await sourceFile.copy(dbPath);
-                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Backup restaurado com sucesso!")));
-                    refreshBooks();
-                  },
-                  child: const Text("Sim, Restaurar"),
-                ),
-              ],
-            ),
-          );
-        }
+      final dbPath = await DatabaseHelper.instance.dbPath;
+      final service = _backupService(dbPath);
+
+      // 1. Valida ANTES de pedir confirmação e antes de tocar nos dados atuais
+      final Directory staging;
+      try {
+        staging = await service.stage(picked);
+      } on BackupException catch (e) {
+        _snack(e.message);
+        return;
       }
+
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Restaurar Backup?"),
+          content: const Text("Isso substituirá todos os livros, capas e ebooks atuais pelo conteúdo do backup. Tem certeza?"),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancelar")),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Sim, Restaurar")),
+          ],
+        ),
+      );
+      if (confirmed != true) {
+        await staging.delete(recursive: true);
+        return;
+      }
+
+      // 2. Fecha o banco (aguardando) e aplica com cópia de segurança/rollback
+      await DatabaseHelper.instance.close();
+      try {
+        await service.applyStaged(staging);
+        _snack("Backup restaurado com sucesso!");
+      } on BackupException catch (e) {
+        _snack(e.message);
+      }
+      try { await migrateLegacyFiles(); } catch (_) {}
+      searchController.clear();
+      await refreshBooks();
     } catch (e) {
-       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro ao importar: $e")));
+      _snack("Erro ao importar: $e");
     }
   }
 
@@ -248,7 +278,7 @@ class _BooksScreenState extends State<BooksScreen> {
                                     // CAPA
                                     Container(
                                       width: 60, height: 90,
-                                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(8), image: book.imagePath != null ? DecorationImage(image: FileImage(File(book.imagePath!)), fit: BoxFit.cover) : null),
+                                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(8), image: book.imagePath != null ? DecorationImage(image: ResizeImage(FileImage(File(FileStorage.instance.resolve(book.imagePath)!)), width: 200), fit: BoxFit.cover) : null),
                                       child: book.imagePath == null ? const Icon(Icons.book, color: Colors.deepPurple) : null,
                                     ),
                                     const SizedBox(width: 12),
@@ -592,13 +622,8 @@ class _BooksScreenState extends State<BooksScreen> {
     if (confirmed != true) return;
 
     // Remove os arquivos associados (melhor esforço) para não deixar lixo no armazenamento
-    for (final filePath in [book.imagePath, book.ebookPath]) {
-      if (filePath == null) continue;
-      try {
-        final f = File(filePath);
-        if (await f.exists()) await f.delete();
-      } catch (_) {}
-    }
+    await FileStorage.instance.delete(book.imagePath);
+    await FileStorage.instance.delete(book.ebookPath);
 
     await DatabaseHelper.instance.delete(book.id!);
     searchController.clear();
@@ -645,7 +670,7 @@ class _BooksScreenState extends State<BooksScreen> {
                         GestureDetector(
                           onTap: () async {
                             final ImagePicker picker = ImagePicker();
-                            showModalBottomSheet(context: context, builder: (bsContext) { return SafeArea(child: Wrap(children: [ListTile(leading: const Icon(Icons.photo_camera), title: const Text('Câmera'), onTap: () async { final XFile? photo = await picker.pickImage(source: ImageSource.camera); if (photo != null) setModalState(() => currentImagePath = photo.path); Navigator.pop(bsContext); }), ListTile(leading: const Icon(Icons.photo_library), title: const Text('Galeria'), onTap: () async { final XFile? photo = await picker.pickImage(source: ImageSource.gallery); if (photo != null) setModalState(() => currentImagePath = photo.path); Navigator.pop(bsContext); })])); });
+                            showModalBottomSheet(context: context, builder: (bsContext) { return SafeArea(child: Wrap(children: [ListTile(leading: const Icon(Icons.photo_camera), title: const Text('Câmera'), onTap: () async { final XFile? photo = await picker.pickImage(source: ImageSource.camera); if (photo != null) { final saved = await FileStorage.instance.saveCover(photo.path); setModalState(() => currentImagePath = saved); } if (bsContext.mounted) Navigator.pop(bsContext); }), ListTile(leading: const Icon(Icons.photo_library), title: const Text('Galeria'), onTap: () async { final XFile? photo = await picker.pickImage(source: ImageSource.gallery); if (photo != null) { final saved = await FileStorage.instance.saveCover(photo.path); setModalState(() => currentImagePath = saved); } if (bsContext.mounted) Navigator.pop(bsContext); })])); });
                           },
                           child: Container(height: 120, width: 80, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey), image: currentImagePath != null ? DecorationImage(image: FileImage(File(currentImagePath!)), fit: BoxFit.cover) : null), child: currentImagePath == null ? const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo, size: 30, color: Colors.grey), Text("Capa", style: TextStyle(fontSize: 10))]) : null),
                         ),
@@ -663,9 +688,6 @@ class _BooksScreenState extends State<BooksScreen> {
                                     side: BorderSide(color: currentEbookPath != null ? Colors.green : Colors.grey),
                                   ),
                                   onPressed: () async {
-                                    // Solicita permissão se necessário
-                                    await Permission.storage.request();
-                                    
                                     // Selecionar PDF ou EPUB
                                     FilePickerResult? result = await FilePicker.platform.pickFiles(
                                       type: FileType.custom,
@@ -674,13 +696,6 @@ class _BooksScreenState extends State<BooksScreen> {
                                     
                                     if(result != null) {
                                       PlatformFile file = result.files.first;
-                                      
-                                      // 1. Obter/Criar Diretório para Ebooks
-                                      final dbDir = await getDatabasesPath();
-                                      final ebooksDir = Directory(path.join(dbDir, 'ebooks'));
-                                      if (!await ebooksDir.exists()) {
-                                        await ebooksDir.create(recursive: true);
-                                      }
                                       
                                       // 2. Corrigir Extensão (Lógica Blindada)
                                       String originalName = file.name;
@@ -715,18 +730,14 @@ class _BooksScreenState extends State<BooksScreen> {
                                          else extension = 'pdf'; 
                                       }
 
-                                      // 3. Montar Nome Final Limpo (Evita duplicatas tipo livro.pdf.pdf)
-                                      String baseName = path.basenameWithoutExtension(originalName);
-                                      String finalFileName = '$baseName.$extension';
+                                      String savedPath = '';
+                                      File savedFile = File('');
 
-                                      final savedPath = path.join(ebooksDir.path, finalFileName).trim();
-                                      File savedFile = File(savedPath);
-                                      
                                       try {
-                                        // 4. Salvar Arquivo (Cópia Segura via Bytes)
+                                        // 3. Copia em streaming para a pasta do app, com nome único
                                         if (file.path != null) {
-                                          final bytes = await File(file.path!).readAsBytes();
-                                          await savedFile.writeAsBytes(bytes);
+                                          savedPath = await FileStorage.instance.saveEbook(file.path!, extension);
+                                          savedFile = File(FileStorage.instance.resolve(savedPath)!);
                                         }
                                         
                                         setModalState(() {
@@ -818,6 +829,9 @@ class _BooksScreenState extends State<BooksScreen> {
                           ebookPath: currentEbookPath, // Salva o caminho
                         );
                         isEditing ? await DatabaseHelper.instance.update(newBook) : await DatabaseHelper.instance.create(newBook);
+                        // Remove arquivos antigos que foram substituídos/removidos no formulário
+                        if (book?.imagePath != null && book!.imagePath != currentImagePath) await FileStorage.instance.delete(book.imagePath);
+                        if (book?.ebookPath != null && book!.ebookPath != currentEbookPath) await FileStorage.instance.delete(book.ebookPath);
                         refreshBooks();
                         searchController.clear();
                         if (mounted) Navigator.pop(ctx);
@@ -897,7 +911,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   void _realOpenEbook(Book book) {
     if (book.ebookPath == null) return;
-    String pathStr = book.ebookPath!.trim();
+    String pathStr = FileStorage.instance.resolve(book.ebookPath)!;
     
     // Verificação de existência mais robusta
     if (!File(pathStr).existsSync()) {
@@ -941,7 +955,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (currentBook.imagePath != null)
-              Container(height: 250, width: double.infinity, decoration: BoxDecoration(image: DecorationImage(image: FileImage(File(currentBook.imagePath!)), fit: BoxFit.cover)))
+              Container(height: 250, width: double.infinity, decoration: BoxDecoration(image: DecorationImage(image: FileImage(File(FileStorage.instance.resolve(currentBook.imagePath)!)), fit: BoxFit.cover)))
             else
               Container(height: 150, width: double.infinity, color: isDark ? Colors.grey[800] : Colors.deepPurple[100], child: const Icon(Icons.menu_book, size: 80, color: Colors.deepPurple)),
             
@@ -1114,7 +1128,7 @@ class PDFReaderScreen extends StatefulWidget {
   State<PDFReaderScreen> createState() => _PDFReaderScreenState();
 }
 
-class _PDFReaderScreenState extends State<PDFReaderScreen> {
+class _PDFReaderScreenState extends State<PDFReaderScreen> with WidgetsBindingObserver {
   late PdfViewerController _pdfController;
   int currentPage = 0;
   int initialPage = 0;
@@ -1131,6 +1145,37 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
     int startPage = widget.book.currentPage > 0 ? widget.book.currentPage : 1;
     currentPage = startPage;
     initialPage = startPage;
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  Timer? _saveDebounce;
+  late int _lastSavedPage = widget.book.currentPage;
+  bool _sessionSaved = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // App indo para segundo plano pode ser encerrado pelo sistema: grava já.
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _flushProgress();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _flushProgress();
+    super.dispose();
+  }
+
+  void _scheduleProgressSave(int page) {
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(milliseconds: 800), () => _updateBookProgress(page));
+  }
+
+  Future<void> _flushProgress() async {
+    _saveDebounce?.cancel();
+    _saveDebounce = null;
+    await _updateBookProgress(currentPage);
   }
 
   // Alterna entre modo Vertical (Rolagem) e Horizontal (Paginação)
@@ -1142,7 +1187,8 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
 
   // Salva o progresso no banco de dados local
   Future<void> _updateBookProgress(int page) async {
-    if (page != widget.book.currentPage) {
+    if (page != _lastSavedPage) {
+      _lastSavedPage = page;
       final updatedBook = widget.book.copyWith(currentPage: page);
       await DatabaseHelper.instance.update(updatedBook);
     }
@@ -1151,7 +1197,9 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
   // Salva a sessão no histórico ao sair da tela
   Future<void> _saveSessionHistory() async {
     // Se avançou pelo menos 1 página em relação ao início da sessão
+    if (_sessionSaved) return;
     if (currentPage > initialPage) {
+      _sessionSaved = true;
       await DatabaseHelper.instance.addSession(
         ReadingSession(
           bookId: widget.book.id!,
@@ -1169,10 +1217,10 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) async {
+        await _flushProgress();
         await _saveSessionHistory();
-        return true;
       },
       child: Scaffold(
         appBar: AppBar(
@@ -1193,7 +1241,7 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
           ],
         ),
         body: PdfViewer.file(
-          widget.book.ebookPath!,
+          FileStorage.instance.resolve(widget.book.ebookPath)!,
           controller: _pdfController,
           // Usamos uma Key baseada na orientação para forçar o recarregamento do layout
           key: ValueKey(_isHorizontal),
@@ -1245,7 +1293,7 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
                     totalPages = _pdfController.pages.length;
                   }
                 });
-                _updateBookProgress(pageNumber);
+                _scheduleProgressSave(pageNumber);
               }
             },
             // onViewerReady substitui o antigo onDocumentLoaded para pegar infos iniciais
@@ -1280,7 +1328,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> {
   void initState() {
     super.initState();
     _epubController = EpubController(
-      document: EpubDocument.openFile(File(widget.book.ebookPath!)),
+      document: EpubDocument.openFile(File(FileStorage.instance.resolve(widget.book.ebookPath)!)),
     );
   }
 
