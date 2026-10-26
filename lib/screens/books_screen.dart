@@ -17,8 +17,12 @@ import '../services/file_storage.dart';
 import '../services/legacy_migration.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/book_form.dart';
+import '../theme/mbs_palette.dart';
+import '../widgets/book_cover.dart';
+import '../widgets/glass.dart';
 import '../widgets/library_filters.dart';
+import '../widgets/pace_indicator.dart';
+import '../widgets/book_form.dart';
 import '../widgets/log_reading_dialog.dart';
 import '../widgets/quote_dialog.dart';
 import '../widgets/start_reading_dialog.dart';
@@ -103,8 +107,8 @@ class _BooksScreenState extends State<BooksScreen> {
       if (!mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text("Restaurar Backup?"),
+        builder: (ctx) => MbsDialog(
+          title: const Text("Restaurar backup?"),
           content: const Text("Isso substituirá todos os livros, capas e ebooks atuais pelo conteúdo do backup. Tem certeza?"),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancelar")),
@@ -135,8 +139,8 @@ class _BooksScreenState extends State<BooksScreen> {
 
   // --- ALTERNAR TEMA ---
   void _toggleTheme() {
-    final isDarkNow = Theme.of(context).brightness == Brightness.dark;
-    themeNotifier.value = isDarkNow ? ThemeMode.light : ThemeMode.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
     SettingsService.saveThemeMode(themeNotifier.value);
   }
 
@@ -150,7 +154,7 @@ class _BooksScreenState extends State<BooksScreen> {
     final allBooks = provider.allBooks;
     final filteredBooks = provider.filteredBooks;
     final isLoading = provider.isLoading;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final p = MbsPalette.of(context);
 
     // Estatísticas para o Dashboard
     final int totalBooks = allBooks.length;
@@ -158,187 +162,247 @@ class _BooksScreenState extends State<BooksScreen> {
     final int readingBooks = allBooks.where((b) => !b.isRead && b.startDate != null).length;
     final int unreadBooks = allBooks.where((b) => !b.isRead && b.startDate == null).length;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('MyBookShelf', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.insights),
-            tooltip: 'Estatísticas',
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatsScreen())),
-          ),
-          IconButton(icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode), tooltip: isDark ? 'Tema claro' : 'Tema escuro', onPressed: _toggleTheme),
-          PopupMenuButton<String>(
-            tooltip: 'Backup',
-            onSelected: (value) { if (value == 'export') _exportDatabase(); else if (value == 'import') _importDatabase(); },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'export', child: Row(children: [Icon(Icons.upload, color: Colors.blue), SizedBox(width: 10), Text("Exportar Backup")])),
-              const PopupMenuItem(value: 'import', child: Row(children: [Icon(Icons.download, color: Colors.green), SizedBox(width: 10), Text("Importar Backup")])),
+    return MbsBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // CABEÇALHO
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+                child: Row(
+                  children: [
+                    Expanded(child: Text('MyBookShelf', style: AppTheme.display(p.text, 28, height: 1.3))),
+                    GlassIconButton(
+                      icon: Icons.insights_rounded,
+                      tooltip: 'Estatísticas',
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatsScreen())),
+                    ),
+                    GlassIconButton(
+                      icon: p.isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                      tooltip: p.isDark ? 'Tema claro' : 'Tema escuro',
+                      onPressed: _toggleTheme,
+                    ),
+                    PopupMenuButton<String>(
+                      tooltip: 'Backup',
+                      padding: EdgeInsets.zero,
+                      onSelected: (value) {
+                        if (value == 'export') {
+                          _exportDatabase();
+                        } else if (value == 'import') {
+                          _importDatabase();
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(value: 'export', child: Row(children: [Icon(Icons.upload_rounded, color: p.blue), const SizedBox(width: 10), const Text("Exportar backup")])),
+                        PopupMenuItem(value: 'import', child: Row(children: [Icon(Icons.download_rounded, color: p.blue), const SizedBox(width: 10), const Text("Importar backup")])),
+                      ],
+                      child: const SizedBox(width: 48, height: 48, child: Center(child: GlassCircle(icon: Icons.more_vert, size: 44, iconSize: 20))),
+                    ),
+                  ],
+                ),
+              ),
+
+              // BARRA DE PESQUISA
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                child: TextField(
+                  controller: searchController,
+                  onChanged: _runFilter,
+                  decoration: InputDecoration(
+                    hintText: 'Pesquisar título ou autor',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: searchController.text.isNotEmpty
+                        ? IconButton(icon: const Icon(Icons.clear_rounded), tooltip: 'Limpar busca', onPressed: _clearSearch)
+                        : null,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: p.glassBorder)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: p.glassBorder)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: p.blue, width: 1.5)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  ),
+                ),
+              ),
+
+              // FILTROS E ORDENAÇÃO
+              const LibraryFilters(),
+
+              // DASHBOARD (ESTATÍSTICAS)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    _buildStatCard("Total", totalBooks, p.blue, p),
+                    const SizedBox(width: 8),
+                    _buildStatCard("Lendo", readingBooks, p.accent, p),
+                    const SizedBox(width: 8),
+                    _buildStatCard("Lidos", readBooks, p.paceDot, p),
+                    const SizedBox(width: 8),
+                    _buildStatCard("Fila", unreadBooks, p.muted, p),
+                  ],
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Na sua estante', style: AppTheme.display(p.blue, 20, height: 1.3)),
+                ),
+              ),
+
+              // LISTA DE LIVROS
+              Expanded(
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : filteredBooks.isEmpty
+                        ? Center(child: Text("Nenhum livro encontrado.", style: AppTheme.body(p.muted, 14)))
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 110),
+                            itemCount: filteredBooks.length,
+                            itemBuilder: (context, index) => _buildBookCard(filteredBooks[index], p),
+                          ),
+              ),
             ],
           ),
-        ],
+        ),
+        floatingActionButton: MbsFab(onPressed: () => showBookForm(context, onChanged: _onBooksChanged)),
       ),
-      body: Column(
-        children: [
-          // BARRA DE PESQUISA
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: TextField(
-              controller: searchController, onChanged: _runFilter,
-              decoration: InputDecoration(
-                labelText: 'Pesquisar...', prefixIcon: const Icon(Icons.search),
-                suffixIcon: searchController.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear), onPressed: _clearSearch) : null,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)), filled: true, fillColor: isDark ? Colors.grey[800] : Colors.grey[100], contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-              ),
-            ),
-          ),
-          const LibraryFilters(),
-          
-          // DASHBOARD (ESTATÍSTICAS)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildStatCard("Total", totalBooks, Colors.blue, isDark), const SizedBox(width: 8),
-                _buildStatCard("Lendo", readingBooks, Colors.orange, isDark), const SizedBox(width: 8),
-                _buildStatCard("Lidos", readBooks, Colors.green, isDark), const SizedBox(width: 8),
-                _buildStatCard("Fila", unreadBooks, Colors.grey, isDark),
-              ],
-            ),
-          ),
-
-          // LISTA DE LIVROS
-          Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filteredBooks.isEmpty
-                    ? const Center(child: Text("Nenhum livro encontrado.", style: TextStyle(color: Colors.grey)))
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: filteredBooks.length,
-                        itemBuilder: (context, index) {
-                          final book = filteredBooks[index];
-                          final percent = book.progress;
-                          
-                          // Lógica da Meta Inteligente
-                          final urgencyColor = book.getUrgencyColor();
-                          final urgencyText = book.getUrgencyText();
-
-                          return Card(
-                            elevation: 3, margin: const EdgeInsets.only(bottom: 16), clipBehavior: Clip.antiAlias, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            child: InkWell(
-                              onTap: () { Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailsScreen(book: book))).then((_) => refreshBooks()); },
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // CAPA
-                                    Container(
-                                      width: 60, height: 90,
-                                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(8), image: book.imagePath != null ? DecorationImage(image: ResizeImage(FileImage(File(FileStorage.instance.resolve(book.imagePath)!)), width: 200), fit: BoxFit.cover) : null),
-                                      child: book.imagePath == null ? const Icon(Icons.book, color: Colors.deepPurple) : null,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    // INFORMAÇÕES
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(book.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                          Text(book.author, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                                          
-                                          // Estrelas (se tiver nota)
-                                          if (book.rating > 0)
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 4),
-                                              child: RatingBarIndicator(rating: book.rating, itemBuilder: (context, index) => const Icon(Icons.star, color: Colors.amber), itemCount: 5, itemSize: 14.0),
-                                            ),
-
-                                          const SizedBox(height: 8),
-                                          // Barra de Progresso Inteligente
-                                          LinearProgressIndicator(semanticsLabel: 'Progresso da leitura', value: percent, minHeight: 8, backgroundColor: isDark ? Colors.grey[700] : Colors.grey[200], color: urgencyColor, borderRadius: BorderRadius.circular(3)),
-                                          const SizedBox(height: 6),
-                                          
-                                          // --- BOX COLORIDA DE META ---
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text("${(percent * 100).toInt()}%", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                decoration: BoxDecoration(color: urgencyColor, borderRadius: BorderRadius.circular(6)),
-                                                child: Text(urgencyText, style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
-                                              ),
-                                            ],
-                                          )
-                                        ],
-                                      ),
-                                    ),
-                                    // BOTÕES
-                                    Column(
-                                      children: [
-                                        PopupMenuButton(
-                                          tooltip: 'Mais opções',
-                                          icon: const Icon(Icons.more_vert, size: 20), padding: EdgeInsets.zero,
-                                          onSelected: (value) async { if (value == 'delete') { await _confirmAndDeleteBook(book); } else if (value == 'edit') showBookForm(context, book: book, onChanged: _onBooksChanged); },
-                                          itemBuilder: (context) => [ const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text("Editar")])), const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 18), SizedBox(width: 8), Text("Excluir", style: TextStyle(color: Colors.red))])), ],
-                                        ),
-                                        
-                                        // BOTÃO DE CITAÇÃO (NOVO)
-                                        IconButton(
-                                          icon: const Icon(Icons.format_quote, color: Colors.purpleAccent),
-                                          tooltip: "Adicionar Citação",
-                                          onPressed: () => showQuoteDialog(context, book),
-                                        ),
-
-                                        // BOTÃO PRINCIPAL (Ler/Iniciar)
-                                        if (book.isRead)
-                                          IconButton(
-                                            icon: const Icon(Icons.check_circle, color: Colors.green),
-                                            onPressed: () => showLogReadingDialog(context, book, onChanged: _onBooksChanged),
-                                            tooltip: "Lido (Editar Avaliação)",
-                                          )
-                                        else if (book.startDate == null)
-                                          IconButton(
-                                            icon: const Icon(Icons.play_circle_fill, color: Colors.green, size: 30),
-                                            onPressed: () => showStartReadingDialog(context, book, onConfirm: refreshBooks),
-                                            tooltip: "Iniciar Leitura",
-                                          )
-                                        else
-                                          IconButton(
-                                            icon: Icon(
-                                              book.isPaused ? Icons.play_arrow : Icons.bookmark_add, 
-                                              color: book.isPaused ? Colors.orange : Colors.blueAccent
-                                            ),
-                                            onPressed: () => showLogReadingDialog(context, book, onChanged: _onBooksChanged),
-                                            tooltip: book.isPaused ? "Retomar" : "Registrar",
-                                          )
-                                      ],
-                                    )
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(onPressed: () => showBookForm(context, onChanged: _onBooksChanged), child: const Icon(Icons.add)),
     );
   }
 
-  Widget _buildStatCard(String label, int count, Color color, bool isDark) {
+  Widget _buildBookCard(Book book, MbsPalette p) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GlassCard(
+        padding: const EdgeInsets.all(12),
+        onTap: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => BookDetailsScreen(book: book))).then((_) => refreshBooks());
+        },
+        child: Row(
+          children: [
+            BookCover(book: book),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(book.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTheme.body(p.text, 15, weight: FontWeight.w600, height: 1.3)),
+                      ),
+                      SizedBox(
+                        width: 36,
+                        height: 32,
+                        child: PopupMenuButton<String>(
+                          tooltip: 'Mais opções do livro',
+                          padding: EdgeInsets.zero,
+                          icon: Icon(Icons.more_vert, size: 20, color: p.muted),
+                          onSelected: (value) async {
+                            if (value == 'delete') {
+                              await _confirmAndDeleteBook(book);
+                            } else if (value == 'edit') {
+                              showBookForm(context, book: book, onChanged: _onBooksChanged);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 18), SizedBox(width: 10), Text("Editar")])),
+                            PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, color: p.rose, size: 18), const SizedBox(width: 10), Text("Excluir", style: TextStyle(color: p.rose))])),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(book.author, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTheme.body(p.muted, 12.5)),
+                  if (book.rating > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: RatingBarIndicator(rating: book.rating, itemBuilder: (context, index) => Icon(Icons.star_rounded, color: p.amber), itemCount: 5, itemSize: 14.0),
+                    ),
+                  const SizedBox(height: 8),
+                  MbsProgressBar(value: book.progress),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text.rich(
+                        TextSpan(
+                          style: AppTheme.body(p.muted, 11.5),
+                          children: [
+                            TextSpan(text: "${book.currentPage}/${book.pageCount}", style: AppTheme.body(p.text, 11.5, weight: FontWeight.w600)),
+                            const TextSpan(text: " pág."),
+                          ],
+                        ),
+                      ),
+                      PaceIndicator(book: book),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GlassIconButton(
+                  icon: Icons.format_quote_rounded,
+                  size: 40,
+                  color: p.blue,
+                  tooltip: 'Adicionar citação',
+                  onPressed: () => showQuoteDialog(context, book),
+                ),
+                const SizedBox(height: 4),
+                _buildMainAction(book),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Botão principal do card, por estado do livro.
+  Widget _buildMainAction(Book book) {
+    if (book.isRead) {
+      return SquircleButton(
+        icon: Icons.check_rounded,
+        tone: MbsTone.blue,
+        tooltip: 'Lido (editar avaliação)',
+        onPressed: () => showLogReadingDialog(context, book, onChanged: _onBooksChanged),
+      );
+    }
+    if (book.startDate == null) {
+      return SquircleButton(
+        icon: Icons.menu_book_rounded,
+        tone: MbsTone.solid,
+        tooltip: 'Iniciar leitura',
+        onPressed: () => showStartReadingDialog(context, book, onConfirm: refreshBooks),
+      );
+    }
+    return SquircleButton(
+      icon: book.isPaused ? Icons.replay_rounded : Icons.bookmark_add_outlined,
+      tone: book.isPaused ? MbsTone.amber : MbsTone.orange,
+      tooltip: book.isPaused ? 'Retomar leitura' : 'Registrar leitura',
+      onPressed: () => showLogReadingDialog(context, book, onChanged: _onBooksChanged),
+    );
+  }
+
+  Widget _buildStatCard(String label, int count, Color dot, MbsPalette p) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(color: color.withValues(alpha: isDark ? 0.2 : 0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.5))),
-        child: Column(children: [Text(count.toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)), const SizedBox(height: 2), Text(label, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87))]),
+      child: GlassCard(
+        radius: 18,
+        padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
+        child: Column(
+          children: [
+            Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+            const SizedBox(height: 4),
+            Text(count.toString(), style: AppTheme.display(p.text, 28, height: 1.2)),
+            Text(label, style: AppTheme.body(p.muted, 11)),
+          ],
+        ),
       ),
     );
   }
@@ -355,13 +419,13 @@ class _BooksScreenState extends State<BooksScreen> {
   Future<void> _confirmAndDeleteBook(Book book) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => MbsDialog(
         title: const Text("Excluir livro?"),
         content: Text("\"${book.title}\" será removido junto com suas citações, histórico de leitura e arquivos locais (capa e ebook). Esta ação não pode ser desfeita."),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancelar")),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: MbsPalette.of(ctx).rose, foregroundColor: MbsPalette.of(ctx).onRose),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text("Excluir"),
           ),

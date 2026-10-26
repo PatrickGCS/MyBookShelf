@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '../data/database_helper.dart';
 import '../models/book.dart';
+import '../theme/mbs_palette.dart';
+import 'glass.dart';
 
 void showLogReadingDialog(BuildContext context, Book book, {required VoidCallback onChanged}) {
   final rootContext = context;
@@ -15,8 +17,9 @@ void showLogReadingDialog(BuildContext context, Book book, {required VoidCallbac
     builder: (ctx) {
       return StatefulBuilder(
         builder: (context, setState) {
-          return AlertDialog(
-            title: Text(book.isPaused ? "Retomar Leitura ▶️" : "Registrar Leitura 📖"),
+          final p = MbsPalette.of(ctx);
+          return MbsDialog(
+            title: Text(book.isPaused ? "Retomar leitura" : "Registrar leitura"),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -27,11 +30,11 @@ void showLogReadingDialog(BuildContext context, Book book, {required VoidCallbac
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: book.isPaused ? Colors.green : Colors.orange,
-                          side: BorderSide(color: book.isPaused ? Colors.green : Colors.orange),
+                          foregroundColor: book.isPaused ? p.accentIcon : p.amber,
+                          side: BorderSide(color: book.isPaused ? p.accent.withValues(alpha: 0.6) : p.amber.withValues(alpha: 0.6)),
                         ),
-                        icon: Icon(book.isPaused ? Icons.play_arrow : Icons.pause),
-                        label: Text(book.isPaused ? "DESPAUSAR (Retomar Meta)" : "PAUSAR LEITURA"),
+                        icon: Icon(book.isPaused ? Icons.replay_rounded : Icons.pause_rounded),
+                        label: Text(book.isPaused ? "Retomar leitura (adia a meta)" : "Pausar leitura"),
                         onPressed: () async {
                           if (book.isPaused) {
                             final now = DateTime.now();
@@ -53,9 +56,9 @@ void showLogReadingDialog(BuildContext context, Book book, {required VoidCallbac
                     ),
 
                   if (book.isPaused)
-                    const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text("O livro está pausado. Retome a leitura para registrar novas páginas.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text("O livro está pausado. Retome a leitura para registrar novas páginas.", textAlign: TextAlign.center, style: TextStyle(color: p.muted)),
                     )
                   else ...[
                     TextField(
@@ -65,14 +68,14 @@ void showLogReadingDialog(BuildContext context, Book book, {required VoidCallbac
                     ),
                     const SizedBox(height: 10),
                     CheckboxListTile(
-                      title: const Text("Terminei o livro!"), value: isFinished,
+                      title: Text("Terminei o livro", style: TextStyle(color: p.text)), value: isFinished,
                       onChanged: (val) => setState(() { isFinished = val!; if (isFinished) pageController.text = book.pageCount.toString(); }),
                     ),
                     
                     if (isFinished || book.isRead) ...[
                       const Divider(),
-                      const Text("Avaliação", style: TextStyle(fontWeight: FontWeight.bold)),
-                      RatingBar.builder(initialRating: currentRating, minRating: 1, direction: Axis.horizontal, allowHalfRating: true, itemCount: 5, itemSize: 30, itemBuilder: (context, _) => const Icon(Icons.star, color: Colors.amber), onRatingUpdate: (rating) { currentRating = rating; }),
+                      Text("Avaliação", style: TextStyle(fontWeight: FontWeight.w600, color: p.text)),
+                      RatingBar.builder(initialRating: currentRating, minRating: 1, direction: Axis.horizontal, allowHalfRating: true, itemCount: 5, itemSize: 30, itemBuilder: (context, _) => Icon(Icons.star_rounded, color: p.amber), onRatingUpdate: (rating) { currentRating = rating; }),
                       TextField(controller: reviewController, maxLines: 2, decoration: const InputDecoration(labelText: "Opinião (opcional)")),
                     ],
                   ]

@@ -4,6 +4,9 @@ import '../data/database_helper.dart';
 import '../services/reminder_service.dart';
 import '../services/settings_service.dart';
 import '../services/stats_service.dart';
+import '../theme/app_theme.dart';
+import '../theme/mbs_palette.dart';
+import '../widgets/glass.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -23,8 +26,18 @@ class _StatsScreenState extends State<StatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Estatísticas')),
+    final p = MbsPalette.of(context);
+    return MbsBackground(
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        foregroundColor: p.text,
+        centerTitle: false,
+        title: Text('Estatísticas', style: AppTheme.display(p.text, 24)),
+      ),
       body: FutureBuilder<LibraryStats>(
         future: _future,
         builder: (context, snap) {
@@ -46,17 +59,18 @@ class _StatsScreenState extends State<StatsScreen> {
                 const SizedBox(height: 8),
                 _SummaryGrid(stats: s),
                 const SizedBox(height: 24),
-                Text('Páginas por dia (últimos 14 dias)', style: Theme.of(context).textTheme.titleMedium),
+                Text('Páginas por dia (últimos 14 dias)', style: AppTheme.display(p.text, 18)),
                 const SizedBox(height: 12),
                 _PagesChart(series: s.pagesPerDay),
                 const SizedBox(height: 24),
-                Text('Livros por gênero', style: Theme.of(context).textTheme.titleMedium),
+                Text('Livros por gênero', style: AppTheme.display(p.text, 18)),
                 const SizedBox(height: 12),
                 _GenreBars(entries: s.genreCounts),
               ],
             ),
           );
         },
+      ),
       ),
     );
   }
@@ -68,37 +82,34 @@ class _StreakCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final p = MbsPalette.of(context);
     final s = stats;
     final message = s.readToday
         ? 'Você já leu hoje. Continue assim!'
         : s.currentStreak > 0
             ? 'Leia hoje para manter sua sequência!'
             : 'Registre uma leitura hoje para começar uma sequência.';
-    return Card(
-      color: scheme.primaryContainer,
-      child: Padding(
+    return GlassCard(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            const Text('🔥', style: TextStyle(fontSize: 40)),
+            Icon(Icons.local_fire_department_rounded, size: 44, color: p.accent),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('${s.currentStreak} ${s.currentStreak == 1 ? 'dia' : 'dias'} seguidos',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                  Text(message),
+                      style: AppTheme.display(p.text, 22)),
+                  Text(message, style: AppTheme.body(p.text, 14)),
                   const SizedBox(height: 4),
                   Text('Recorde: ${s.longestStreak} · Dias lendo nos últimos 30: ${s.daysReadLast30}',
-                      style: Theme.of(context).textTheme.bodySmall),
+                      style: AppTheme.body(p.muted, 12)),
                 ],
               ),
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -109,6 +120,7 @@ class _SummaryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = MbsPalette.of(context);
     final s = stats;
     final money = NumberFormat.currency(locale: 'pt_BR', symbol: r'R$');
     final items = <(IconData, String, String)>[
@@ -130,27 +142,24 @@ class _SummaryGrid extends StatelessWidget {
       crossAxisSpacing: 8,
       children: [
         for (final (icon, label, value) in items)
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
+          GlassCard(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  Icon(icon, color: Theme.of(context).colorScheme.primary),
+                  Icon(icon, color: p.blue),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), overflow: TextOverflow.ellipsis),
-                        Text(label, style: Theme.of(context).textTheme.bodySmall),
+                        Text(value, style: AppTheme.display(p.text, 18), overflow: TextOverflow.ellipsis),
+                        Text(label, style: AppTheme.body(p.muted, 11.5)),
                       ],
                     ),
                   ),
                 ],
               ),
-            ),
           ),
       ],
     );
@@ -164,11 +173,12 @@ class _PagesChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final maxV = series.fold<int>(0, (m, e) => e.value > m ? e.value : m);
-    final color = Theme.of(context).colorScheme.primary;
+    final p = MbsPalette.of(context);
+    final color = p.blue;
     if (maxV == 0) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: Text('Nenhuma leitura registrada neste período.')),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: Text('Nenhuma leitura registrada neste período.', style: AppTheme.body(p.muted, 14))),
       );
     }
     return SizedBox(
@@ -183,17 +193,17 @@ class _PagesChart extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    if (e.value > 0) Text('${e.value}', style: const TextStyle(fontSize: 9)),
+                    if (e.value > 0) Text('${e.value}', style: AppTheme.body(p.muted, 9)),
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 2),
                       height: e.value == 0 ? 2 : 110 * e.value / maxV,
                       decoration: BoxDecoration(
-                        color: e.value == 0 ? Colors.grey.withValues(alpha: 0.4) : color,
+                        color: e.value == 0 ? p.track : color,
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(DateFormat('dd').format(e.key), style: const TextStyle(fontSize: 9)),
+                    Text(DateFormat('dd').format(e.key), style: AppTheme.body(p.muted, 9)),
                   ],
                 ),
               ),
@@ -210,7 +220,8 @@ class _GenreBars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (entries.isEmpty) return const Text('Nenhum livro cadastrado.');
+    final p = MbsPalette.of(context);
+    if (entries.isEmpty) return Text('Nenhum livro cadastrado.', style: AppTheme.body(p.muted, 14));
     final maxV = entries.first.value;
     return Column(
       children: [
@@ -219,15 +230,15 @@ class _GenreBars extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
               children: [
-                SizedBox(width: 100, child: Text(e.key, overflow: TextOverflow.ellipsis)),
+                SizedBox(width: 100, child: Text(e.key, overflow: TextOverflow.ellipsis, style: AppTheme.body(p.text, 13))),
                 Expanded(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(value: e.value / maxV, minHeight: 14, semanticsLabel: '${e.key}: ${e.value}'),
+                    child: LinearProgressIndicator(value: e.value / maxV, minHeight: 14, color: p.blue, backgroundColor: p.track, semanticsLabel: '${e.key}: ${e.value}'),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text('${e.value}'),
+                Text('${e.value}', style: AppTheme.body(p.text, 13)),
               ],
             ),
           ),
@@ -298,16 +309,20 @@ class _ReminderCardState extends State<_ReminderCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
+    final p = MbsPalette.of(context);
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
-        leading: const Icon(Icons.notifications_active),
-        title: const Text('Lembrete diário de leitura'),
+        leading: Icon(Icons.notifications_active_outlined, color: p.blue),
+        title: Text('Lembrete diário de leitura', style: AppTheme.body(p.text, 15, weight: FontWeight.w600)),
         subtitle: GestureDetector(
           onTap: _pickTime,
-          child: Text('Todos os dias às ${_time.format(context)} (toque para mudar)'),
+          child: Text('Todos os dias às ${_time.format(context)} (toque para mudar)', style: AppTheme.body(p.muted, 12.5)),
         ),
-        trailing: Switch(value: _enabled, onChanged: _toggle),
+        trailing: Switch(
+          value: _enabled,
+          onChanged: _toggle,
+        ),
       ),
     );
   }

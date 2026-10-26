@@ -10,6 +10,7 @@ import '../data/database_helper.dart';
 import '../models/book.dart';
 import '../services/book_lookup_service.dart';
 import '../services/file_storage.dart';
+import '../theme/mbs_palette.dart';
 import 'cover_search_sheet.dart';
 
 void showBookForm(BuildContext context, {Book? book, required VoidCallback onChanged}) {
@@ -29,19 +30,23 @@ void showBookForm(BuildContext context, {Book? book, required VoidCallback onCha
   String? currentEbookPath = book?.ebookPath; // --- VARIAVEL PARA O EBOOK
   bool alreadyRead = book?.isRead ?? false;
 
+  final palette = MbsPalette.of(context);
   showModalBottomSheet(
     context: context, isScrollControlled: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    backgroundColor: palette.dialogFill,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
     builder: (ctx) {
       return StatefulBuilder(
         builder: (context, setModalState) {
+          final p = MbsPalette.of(context);
           return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, top: 20, left: 20, right: 20),
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, top: 4, left: 20, right: 20),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(isEditing ? "Editar Livro" : "Novo Livro", style: Theme.of(context).textTheme.headlineSmall),
+                  Text(isEditing ? "Editar livro" : "Novo livro", style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 20),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -50,9 +55,9 @@ void showBookForm(BuildContext context, {Book? book, required VoidCallback onCha
                       GestureDetector(
                         onTap: () async {
                           final ImagePicker picker = ImagePicker();
-                          showModalBottomSheet(context: context, builder: (bsContext) { return SafeArea(child: Wrap(children: [ListTile(leading: const Icon(Icons.photo_camera), title: const Text('Câmera'), onTap: () async { final XFile? photo = await picker.pickImage(source: ImageSource.camera); if (photo != null) { final saved = await FileStorage.instance.saveCover(photo.path); setModalState(() => currentImagePath = saved); } if (bsContext.mounted) Navigator.pop(bsContext); }), ListTile(leading: const Icon(Icons.photo_library), title: const Text('Galeria'), onTap: () async { final XFile? photo = await picker.pickImage(source: ImageSource.gallery); if (photo != null) { final saved = await FileStorage.instance.saveCover(photo.path); setModalState(() => currentImagePath = saved); } if (bsContext.mounted) Navigator.pop(bsContext); })])); });
+                          showModalBottomSheet(context: context, backgroundColor: p.dialogFill, builder: (bsContext) { return SafeArea(child: Wrap(children: [ListTile(leading: const Icon(Icons.photo_camera), title: const Text('Câmera'), onTap: () async { final XFile? photo = await picker.pickImage(source: ImageSource.camera); if (photo != null) { final saved = await FileStorage.instance.saveCover(photo.path); setModalState(() => currentImagePath = saved); } if (bsContext.mounted) Navigator.pop(bsContext); }), ListTile(leading: const Icon(Icons.photo_library), title: const Text('Galeria'), onTap: () async { final XFile? photo = await picker.pickImage(source: ImageSource.gallery); if (photo != null) { final saved = await FileStorage.instance.saveCover(photo.path); setModalState(() => currentImagePath = saved); } if (bsContext.mounted) Navigator.pop(bsContext); })])); });
                         },
-                        child: Container(height: 120, width: 80, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey), image: currentImagePath != null ? DecorationImage(image: ResizeImage(FileImage(File(FileStorage.instance.resolve(currentImagePath)!)), width: 240), fit: BoxFit.cover) : null), child: currentImagePath == null ? const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo, size: 30, color: Colors.grey), Text("Capa", style: TextStyle(fontSize: 10))]) : null),
+                        child: Container(height: 120, width: 80, decoration: BoxDecoration(color: p.glassFill, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.glassBorder), image: currentImagePath != null ? DecorationImage(image: ResizeImage(FileImage(File(FileStorage.instance.resolve(currentImagePath)!)), width: 240), fit: BoxFit.cover) : null), child: currentImagePath == null ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo_outlined, size: 28, color: p.muted), Text("Capa", style: TextStyle(fontSize: 11, color: p.muted))]) : null),
                       ),
                       const SizedBox(width: 15),
                       // --- BOTÃO EBOOK (NOVO) ---
@@ -62,10 +67,10 @@ void showBookForm(BuildContext context, {Book? book, required VoidCallback onCha
                           children: [
                               OutlinedButton.icon(
                                 icon: const Icon(Icons.upload_file),
-                                label: Text(currentEbookPath == null ? "Importar Ebook (PDF/EPUB)" : "Ebook Selecionado!"),
+                                label: Text(currentEbookPath == null ? "Importar ebook (PDF/EPUB)" : "Ebook selecionado"),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: currentEbookPath != null ? Colors.green : Colors.blue,
-                                  side: BorderSide(color: currentEbookPath != null ? Colors.green : Colors.grey),
+                                  foregroundColor: currentEbookPath != null ? p.blue : p.text,
+                                  side: BorderSide(color: currentEbookPath != null ? p.blue : p.glassBorder),
                                 ),
                                 onPressed: () async {
                                   // Selecionar PDF ou EPUB
@@ -171,7 +176,7 @@ void showBookForm(BuildContext context, {Book? book, required VoidCallback onCha
                               if (currentEbookPath != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
-                                  child: Text(path.basename(currentEbookPath!), style: const TextStyle(fontSize: 12, color: Colors.grey), overflow: TextOverflow.ellipsis),
+                                  child: Text(path.basename(currentEbookPath!), style: TextStyle(fontSize: 12, color: p.muted), overflow: TextOverflow.ellipsis),
                                 )
                           ],
                         ),
@@ -186,6 +191,7 @@ void showBookForm(BuildContext context, {Book? book, required VoidCallback onCha
                   Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(
+                      style: TextButton.styleFrom(foregroundColor: p.blue),
                       icon: const Icon(Icons.image_search),
                       label: const Text("Buscar capa e dados online"),
                       onPressed: () async {
@@ -241,7 +247,7 @@ void showBookForm(BuildContext context, {Book? book, required VoidCallback onCha
                   const SizedBox(height: 10),
                   Row(children: [Expanded(child: TextField(controller: genreController, decoration: const InputDecoration(labelText: "Gênero"))), const SizedBox(width: 12), Expanded(child: TextField(controller: pagesController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Páginas")))]),
                   const SizedBox(height: 10),
-                  TextField(controller: priceController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: "Preço (R\$)", prefixIcon: Icon(Icons.attach_money))),
+                  TextField(controller: priceController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: "Preço (R\$)", prefixIcon: Icon(Icons.attach_money_rounded))),
                   const SizedBox(height: 10),
                   CheckboxListTile(title: const Text("Já li este livro"), subtitle: const Text("Marcar como concluído"), value: alreadyRead, onChanged: (val) { setModalState(() { alreadyRead = val!; }); }),
                   const SizedBox(height: 24),

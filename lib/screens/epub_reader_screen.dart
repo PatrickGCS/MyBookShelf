@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../data/database_helper.dart';
 import '../models/book.dart';
 import '../services/file_storage.dart';
+import '../theme/mbs_palette.dart';
+import '../widgets/glass.dart';
 
 // --- TELA LEITOR DE EPUB ---
 class EpubReaderScreen extends StatefulWidget {
@@ -104,24 +106,35 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with WidgetsBinding
         await _flushProgress();
         await _saveSession();
       },
-      child: Scaffold(
+      child: MbsBackground(
+        child: Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          foregroundColor: MbsPalette.of(context).text,
           title: EpubViewActualChapter(
             controller: _epubController,
             builder: (chapterValue) => Text(
               chapterValue?.chapter?.Title?.replaceAll('\n', '').trim() ?? 'Lendo...',
               textAlign: TextAlign.start,
-              style: const TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
           ),
         ),
         drawer: Drawer(
           child: EpubViewTableOfContents(controller: _epubController),
         ),
-        body: EpubView(
-          controller: _epubController,
-          onChapterChanged: _onChapterChanged,
+        body: ColoredBox(
+          color: Theme.of(context).colorScheme.surface,
+          child: EpubView(
+            controller: _epubController,
+            onChapterChanged: _onChapterChanged,
+          ),
         ),
+      ),
       ),
     );
   }

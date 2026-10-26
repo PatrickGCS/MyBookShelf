@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import '../data/database_helper.dart';
 import '../models/book.dart';
+import 'glass.dart';
 
-void showQuoteDialog(BuildContext context, Book book) {
+Future<void> showQuoteDialog(BuildContext context, Book book) {
   final rootContext = context;
   final textController = TextEditingController();
   final pageController = TextEditingController();
 
-  showDialog(
+  return showDialog<void>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text("Nova Citação 💬"),
+    builder: (ctx) => MbsDialog(
+      title: const Text("Nova citação"),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -19,7 +20,7 @@ void showQuoteDialog(BuildContext context, Book book) {
             maxLines: 3,
             decoration: const InputDecoration(labelText: "A frase que te marcou...", hintText: "Ex: 'O essencial é invisível aos olhos'"),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           TextField(
             controller: pageController,
             keyboardType: TextInputType.number,

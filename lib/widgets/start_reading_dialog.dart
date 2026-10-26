@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/database_helper.dart';
 import '../models/book.dart';
+import '../theme/mbs_palette.dart';
+import 'glass.dart';
 
 Future<void> showStartReadingDialog(BuildContext context, Book book, {VoidCallback? onConfirm}) {
   DateTime targetDate = DateTime.now().add(const Duration(days: 30));
@@ -10,8 +12,9 @@ Future<void> showStartReadingDialog(BuildContext context, Book book, {VoidCallba
     context: context,
     builder: (ctx) {
       return StatefulBuilder(builder: (context, setState) {
-        return AlertDialog(
-          title: const Text("Iniciar Leitura 🚀"),
+        final p = MbsPalette.of(ctx);
+        return MbsDialog(
+          title: const Text("Iniciar leitura"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -22,10 +25,15 @@ Future<void> showStartReadingDialog(BuildContext context, Book book, {VoidCallba
                   final picked = await showDatePicker(context: context, initialDate: targetDate, firstDate: DateTime.now(), lastDate: DateTime(2100));
                   if (picked != null) setState(() => targetDate = picked);
                 },
+                borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(border: Border.all(color: Colors.blue), borderRadius: BorderRadius.circular(8)),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.flag, color: Colors.blue), const SizedBox(width: 8), Text(DateFormat('dd/MM/yyyy').format(targetDate), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))]),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: p.blue.withValues(alpha: 0.14),
+                    border: Border.all(color: p.blue.withValues(alpha: 0.5)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.flag_outlined, color: p.blue), const SizedBox(width: 10), Text(DateFormat('dd/MM/yyyy').format(targetDate), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: p.blue))]),
                 ),
               )
             ],

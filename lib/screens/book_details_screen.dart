@@ -8,6 +8,14 @@ import 'pdf_reader_screen.dart';
 import '../data/database_helper.dart';
 import '../models/book.dart';
 import '../services/file_storage.dart';
+import '../theme/app_theme.dart';
+import '../theme/mbs_palette.dart';
+import '../widgets/book_cover.dart';
+import '../widgets/book_form.dart';
+import '../widgets/book_open_route.dart';
+import '../widgets/glass.dart';
+import '../widgets/pace_indicator.dart';
+import '../widgets/quote_dialog.dart';
 import '../widgets/start_reading_dialog.dart';
 
 class BookDetailsScreen extends StatefulWidget {
@@ -82,16 +90,20 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     if (pathStr.toLowerCase().endsWith('.pdf')) {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => PDFReaderScreen(book: book), 
+        BookOpenRoute<void>(
+          cover: BookCover(book: book, width: 124, height: 186),
+          reduceMotion: MediaQuery.of(context).disableAnimations,
+          builder: (context) => PDFReaderScreen(book: book),
         ),
       ).then((_) => _refreshBook()); // Recarrega os dados ao voltar do PDF
     } 
     else if (pathStr.toLowerCase().endsWith('.epub')) {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => EpubReaderScreen(book: book), 
+        BookOpenRoute<void>(
+          cover: BookCover(book: book, width: 124, height: 186),
+          reduceMotion: MediaQuery.of(context).disableAnimations,
+          builder: (context) => EpubReaderScreen(book: book),
         ),
       ).then((_) => _refreshBook()); // Recarrega os dados ao voltar do Epub
     } else {
@@ -101,135 +113,247 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Usamos currentBook em vez de widget.book para garantir dados atualizados
-    final dateFormatted = DateFormat('dd/MM/yyyy').format(currentBook.dateAcquired);
-    final targetFormatted = currentBook.targetDate != null ? DateFormat('dd/MM/yyyy').format(currentBook.targetDate!) : "Não definida";
-    final startFormatted = currentBook.startDate != null ? DateFormat('dd/MM/yyyy').format(currentBook.startDate!) : "Não iniciado";
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final p = MbsPalette.of(context);
+    final book = currentBook;
+    final dateFormatted = DateFormat('dd/MM/yyyy').format(book.dateAcquired);
+    final targetFormatted = book.targetDate != null ? DateFormat('dd/MM/yyyy').format(book.targetDate!) : "Não definida";
+    final startFormatted = book.startDate != null ? DateFormat('dd/MM/yyyy').format(book.startDate!) : "Não iniciado";
+    final started = book.startDate != null && book.currentPage > 0;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text("Detalhes")),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (currentBook.imagePath != null)
-              Semantics(image: true, label: 'Capa de ${currentBook.title}', child: Container(height: 250, width: double.infinity, decoration: BoxDecoration(image: DecorationImage(image: ResizeImage(FileImage(File(FileStorage.instance.resolve(currentBook.imagePath)!)), width: 1080), fit: BoxFit.cover))))
-            else
-              Container(height: 150, width: double.infinity, color: isDark ? Colors.grey[800] : Colors.deepPurple[100], child: const Icon(Icons.menu_book, size: 80, color: Colors.deepPurple)),
-            
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(currentBook.title, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-                  Text(currentBook.author, style: const TextStyle(fontSize: 18, color: Colors.grey)),
-                  
-                  if (currentBook.rating > 0) ...[
+    return MbsBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          foregroundColor: MbsPalette.of(context).text,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: GlassIconButton(icon: Icons.arrow_back_ios_new_rounded, tooltip: 'Voltar', onPressed: () => Navigator.maybePop(context)),
+          ),
+          leadingWidth: 56,
+          actions: [
+            GlassIconButton(
+              icon: Icons.edit_outlined,
+              tooltip: 'Editar livro',
+              onPressed: () => showBookForm(context, book: book, onChanged: _refreshBook),
+            ),
+            const SizedBox(width: 12),
+          ],
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(child: BookCover(book: book, width: 124, height: 186)),
+              const SizedBox(height: 18),
+              Text(book.title, textAlign: TextAlign.center, style: AppTheme.display(p.text, 32, height: 1.25)),
+              const SizedBox(height: 4),
+              Text(book.author, textAlign: TextAlign.center, style: AppTheme.body(p.muted, 15)),
+              if (book.rating > 0) ...[
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    RatingBarIndicator(rating: book.rating, itemBuilder: (context, index) => Icon(Icons.star_rounded, color: p.amber), itemCount: 5, itemSize: 22.0),
+                    const SizedBox(width: 8),
+                    Text("${book.rating}/5", style: AppTheme.body(p.text, 14, weight: FontWeight.w600)),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 18),
+
+              // PROGRESSO
+              GlassCard(
+                radius: 24,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("${(book.progress * 100).toInt()}%", style: AppTheme.display(p.text, 34, height: 1.2)),
+                        Text("${book.currentPage} de ${book.pageCount} páginas", style: AppTheme.body(p.muted, 13)),
+                      ],
+                    ),
                     const SizedBox(height: 10),
-                    Row(children: [RatingBarIndicator(rating: currentBook.rating, itemBuilder: (context, index) => const Icon(Icons.star, color: Colors.amber), itemCount: 5, itemSize: 24.0), const SizedBox(width: 8), Text("${currentBook.rating}/5", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]),
+                    MbsProgressBar(value: book.progress, height: 8),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Meta: $targetFormatted", style: AppTheme.body(p.muted, 12)),
+                        PaceIndicator(book: book),
+                      ],
+                    ),
                   ],
+                ),
+              ),
 
-                  const SizedBox(height: 10),
-                  LinearProgressIndicator(semanticsLabel: 'Progresso da leitura', value: currentBook.progress, minHeight: 10, borderRadius: BorderRadius.circular(5), color: currentBook.getUrgencyColor(), backgroundColor: isDark ? Colors.grey[700] : Colors.grey[200]),
-                  const SizedBox(height: 5),
-                  Text("${(currentBook.progress * 100).toInt()}% Concluído (${currentBook.currentPage}/${currentBook.pageCount})"),
-                  
-                  if (currentBook.isPaused)
-                    Container(margin: const EdgeInsets.only(top: 10), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(5)), child: const Row(children: [Icon(Icons.pause, size: 16, color: Colors.orange), SizedBox(width: 5), Text("Leitura Pausada", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold))])),
+              // BOTÃO DE LER EBOOK
+              if (book.ebookPath != null) ...[
+                const SizedBox(height: 16),
+                MbsGradientButton(
+                  label: started ? "Continuar lendo" : "Começar a ler",
+                  icon: Icons.menu_book_rounded,
+                  onPressed: _openEbook, // Chama a função com lógica de meta
+                ),
+              ],
 
-                  // --- BOTÃO DE LER EBOOK (GRANDE) ---
-                  if (currentBook.ebookPath != null) ...[
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: FilledButton.icon(
-                          onPressed: _openEbook, // Chama a função com lógica de meta
-                          icon: const Icon(Icons.menu_book),
-                          label: const Text("LER EBOOK AGORA"),
-                          style: FilledButton.styleFrom(backgroundColor: Colors.deepPurple),
-                        ),
-                      ),
-                  ],
-
-                  if (currentBook.review != null && currentBook.review!.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    const Text("Minha Resenha", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    Container(width: double.infinity, margin: const EdgeInsets.only(top: 8), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: isDark ? Colors.grey[800] : Colors.amber[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: isDark ? Colors.grey[700]! : Colors.amber[200]!)), child: Text(currentBook.review!, style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 15)))
-                  ],
-
-                  const SizedBox(height: 20),
-                  const Text("Informações Técnicas", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const Divider(),
-                  _buildInfoRow(Icons.business, "Editora", currentBook.publisher),
-                  _buildInfoRow(Icons.category, "Gênero", currentBook.genre),
-                  _buildInfoRow(Icons.file_copy, "Páginas", "${currentBook.pageCount}"),
-                  _buildInfoRow(Icons.monetization_on, "Preço", "R\$ ${currentBook.price.toStringAsFixed(2)}"),
-                  _buildInfoRow(Icons.calendar_today, "Comprou", dateFormatted),
-                  _buildInfoRow(Icons.start, "Iniciou", startFormatted),
-                  _buildInfoRow(Icons.flag, "Meta", targetFormatted),
-
-                  const SizedBox(height: 20),
-                  Center(child: Chip(label: Text(currentBook.isRead ? "Lido" : "Lendo / Não Lido"), backgroundColor: currentBook.isRead ? Colors.green.shade900 : Colors.orange.shade900, labelStyle: const TextStyle(color: Colors.white), avatar: Icon(currentBook.isRead ? Icons.check_circle : Icons.hourglass_empty, color: Colors.white))),
-
-                  // --- SEÇÃO DE CITAÇÕES (QUOTES) ---
-                  const SizedBox(height: 30),
-                  const Text("Citações Favoritas", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const Divider(),
-                  FutureBuilder<List<Quote>>(
-                    future: quotes,
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text("Nenhuma citação salva.", style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
-                        );
-                      }
-                      return Column(
-                        children: snapshot.data!.map((quote) => Card(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          elevation: 1,
-                          color: isDark ? Colors.grey[800] : Colors.amber[50], // Estilo de "post-it"
-                          child: ListTile(
-                            leading: const Icon(Icons.format_quote, color: Colors.amber),
-                            title: Text(quote.text, style: const TextStyle(fontStyle: FontStyle.italic)),
-                            subtitle: Text("Página: ${quote.page}"),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                              tooltip: 'Excluir citação',
-                              onPressed: () => _deleteQuote(quote.id!),
-                            ),
-                          ),
-                        )).toList(),
-                      );
-                    },
+              if (book.review != null && book.review!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                GlassCard(
+                  soft: true,
+                  radius: 24,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Minha resenha", style: AppTheme.display(p.highlight, 19, height: 1.3)),
+                      const SizedBox(height: 8),
+                      Text(book.review!, style: AppTheme.body(p.text, 15, height: 1.6, style: FontStyle.italic)),
+                    ],
                   ),
+                ),
+              ],
 
-                  const SizedBox(height: 30),
-                  const Text("Histórico de Leitura", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const Divider(),
-                  FutureBuilder<List<ReadingSession>>(
-                    future: history,
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) return const Text("Nenhum registro ainda.", style: TextStyle(fontStyle: FontStyle.italic));
-                      return ListView.separated(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: snapshot.data!.length, separatorBuilder: (context, index) => const Divider(height: 1), itemBuilder: (context, index) { final session = snapshot.data![index]; return ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.history_edu, color: Colors.blueGrey), title: Text(DateFormat('dd/MM/yyyy - HH:mm').format(session.date)), subtitle: Text("Avançou até a página ${session.pageStopped}")); });
+              // CITAÇÕES
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(child: Text("Citações favoritas", style: AppTheme.display(p.highlight, 19, height: 1.3))),
+                  GlassIconButton(
+                    icon: Icons.format_quote_rounded,
+                    size: 40,
+                    color: p.blue,
+                    tooltip: 'Adicionar citação',
+                    onPressed: () async {
+                      await showQuoteDialog(context, book);
+                      if (mounted) _refreshBook();
                     },
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              FutureBuilder<List<Quote>>(
+                future: quotes,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text("Nenhuma citação salva.", style: AppTheme.body(p.muted, 14, style: FontStyle.italic)),
+                    );
+                  }
+                  return Column(
+                    children: snapshot.data!
+                        .map(
+                          (quote) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: GlassCard(
+                              soft: true,
+                              radius: 24,
+                              padding: const EdgeInsets.fromLTRB(18, 14, 8, 14),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text("“${quote.text}”", style: AppTheme.body(p.text, 15, height: 1.6, style: FontStyle.italic)),
+                                        const SizedBox(height: 6),
+                                        Text("p. ${quote.page}", style: AppTheme.body(p.muted, 12)),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.delete_outline, size: 20, color: p.rose),
+                                    tooltip: 'Excluir citação',
+                                    onPressed: () => _deleteQuote(quote.id!),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  );
+                },
+              ),
+
+              // INFORMAÇÕES
+              const SizedBox(height: 12),
+              GlassCard(
+                soft: true,
+                radius: 24,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                child: Column(
+                  children: [
+                    _infoRow(p, "Gênero", book.genre),
+                    _infoRow(p, "Editora", book.publisher),
+                    _infoRow(p, "Páginas", "${book.pageCount}"),
+                    _infoRow(p, "Preço", "R\$ ${book.price.toStringAsFixed(2)}"),
+                    _infoRow(p, "Comprou", dateFormatted),
+                    _infoRow(p, "Iniciou", startFormatted),
+                    _infoRow(p, "Meta", targetFormatted, last: true),
+                  ],
+                ),
+              ),
+
+              // HISTÓRICO
+              const SizedBox(height: 22),
+              Text("Histórico de leitura", style: AppTheme.display(p.blue, 19, height: 1.3)),
+              const SizedBox(height: 8),
+              FutureBuilder<List<ReadingSession>>(
+                future: history,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Text("Nenhum registro ainda.", style: AppTheme.body(p.muted, 14, style: FontStyle.italic));
+                  }
+                  return GlassCard(
+                    soft: true,
+                    radius: 24,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < snapshot.data!.length; i++)
+                          _infoRow(
+                            p,
+                            DateFormat('dd/MM/yyyy - HH:mm').format(snapshot.data![i].date),
+                            "até a pág. ${snapshot.data![i].pageStopped}",
+                            last: i == snapshot.data!.length - 1,
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(children: [Icon(icon, size: 20, color: Colors.deepPurple[300]), const SizedBox(width: 10), Text("$label:", style: const TextStyle(fontWeight: FontWeight.bold)), const SizedBox(width: 5), Expanded(child: Text(value))]));
+  Widget _infoRow(MbsPalette p, String label, String value, {bool last = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        border: last ? null : Border(bottom: BorderSide(color: p.glassBorder)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: AppTheme.body(p.muted, 14)),
+          const SizedBox(width: 12),
+          Flexible(child: Text(value, textAlign: TextAlign.end, style: AppTheme.body(p.text, 14))),
+        ],
+      ),
+    );
   }
-
-  // --- DIALOGO DE INICIAR LEITURA REUTILIZADO ---
-
 }

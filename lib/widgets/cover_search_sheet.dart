@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/book_lookup_service.dart';
+import '../theme/app_theme.dart';
+import '../theme/mbs_palette.dart';
 
 /// Abre a busca online e devolve o resultado escolhido (ou null).
 /// Busca pelo [title]; se [author] estiver preenchido, refina a busca.
@@ -12,7 +14,9 @@ Future<BookCandidate?> showCoverSearch(
   return showModalBottomSheet<BookCandidate>(
     context: context,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    backgroundColor: MbsPalette.of(context).dialogFill,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
     builder: (_) => _CoverSearchSheet(service: service, title: title, author: author),
   );
 }
@@ -34,6 +38,7 @@ class _CoverSearchSheetState extends State<_CoverSearchSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final p = MbsPalette.of(context);
     final query = _hasAuthor ? '"${widget.title}" de ${widget.author!.trim()}' : '"${widget.title}"';
     return SafeArea(
       child: ConstrainedBox(
@@ -42,13 +47,13 @@ class _CoverSearchSheetState extends State<_CoverSearchSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
               child: Row(
                 children: [
-                  const Icon(Icons.image_search),
+                  Icon(Icons.image_search, color: p.blue),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text('Resultados para $query', style: Theme.of(context).textTheme.titleMedium),
+                    child: Text('Resultados para $query', style: AppTheme.display(p.text, 18)),
                   ),
                 ],
               ),
@@ -58,12 +63,12 @@ class _CoverSearchSheetState extends State<_CoverSearchSheet> {
                 future: _future,
                 builder: (context, snap) {
                   if (snap.connectionState != ConnectionState.done) {
-                    return const Padding(
-                      padding: EdgeInsets.all(40),
+                    return Padding(
+                      padding: const EdgeInsets.all(40),
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 12),
-                        Text('Buscando no Open Library e Google Books...'),
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 12),
+                        Text('Buscando no Open Library e Google Books...', style: TextStyle(color: p.muted)),
                       ]),
                     );
                   }
@@ -72,13 +77,14 @@ class _CoverSearchSheetState extends State<_CoverSearchSheet> {
                     return Padding(
                       padding: const EdgeInsets.all(32),
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.search_off, size: 40),
+                        Icon(Icons.search_off, size: 40, color: p.muted),
                         const SizedBox(height: 8),
                         Text(
                           snap.hasError
                               ? 'Não foi possível buscar agora. Verifique sua conexão.'
                               : 'Nenhum resultado encontrado. Tente ajustar o título ou o autor.',
                           textAlign: TextAlign.center,
+                          style: TextStyle(color: p.muted),
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton(
@@ -91,7 +97,7 @@ class _CoverSearchSheetState extends State<_CoverSearchSheet> {
                   return ListView.separated(
                     shrinkWrap: true,
                     itemCount: results.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, __) => Divider(height: 1, color: p.glassBorder),
                     itemBuilder: (context, i) => _ResultTile(candidate: results[i]),
                   );
                 },
@@ -114,6 +120,7 @@ class _ResultTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = MbsPalette.of(context);
     final c = candidate;
     final details = [
       if (c.authorText.isNotEmpty) c.authorText,
@@ -125,22 +132,23 @@ class _ResultTile extends StatelessWidget {
         width: 44,
         height: 64,
         child: c.previewUrl == null
-            ? const Icon(Icons.menu_book)
+            ? Icon(Icons.menu_book, color: p.muted)
             : ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: Image.network(
                   c.previewUrl!,
                   fit: BoxFit.cover,
                   cacheWidth: 120,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+                  errorBuilder: (_, __, ___) => Icon(Icons.broken_image, color: p.muted),
                 ),
               ),
       ),
-      title: Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+      title: Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.text, fontWeight: FontWeight.w600)),
       subtitle: Text(
         '$details${details.isEmpty ? '' : '\n'}${c.hasCover ? 'Com capa' : 'Sem capa'} · ${c.sources.join(' + ')}',
         maxLines: 3,
         overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: p.muted, fontSize: 12.5),
       ),
       isThreeLine: true,
       onTap: () => Navigator.pop(context, c),

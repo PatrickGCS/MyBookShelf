@@ -4,6 +4,8 @@ import 'package:pdfrx/pdfrx.dart';
 import '../data/database_helper.dart';
 import '../models/book.dart';
 import '../services/file_storage.dart';
+import '../theme/mbs_palette.dart';
+import '../widgets/glass.dart';
 
 class PDFReaderScreen extends StatefulWidget {
   final Book book;
@@ -107,9 +109,16 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> with WidgetsBindingOb
         await _flushProgress();
         await _saveSessionHistory();
       },
-      child: Scaffold(
+      child: MbsBackground(
+        child: Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: Text(widget.book.title, style: const TextStyle(fontSize: 16)),
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          foregroundColor: MbsPalette.of(context).text,
+          title: Text(widget.book.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
           actions: [
             // Botão para alternar orientação
             IconButton(
@@ -192,6 +201,7 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> with WidgetsBindingOb
           ),
           // ---------------------
         ),
+      ),
       ),
     );
   }
