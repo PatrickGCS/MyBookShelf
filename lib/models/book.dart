@@ -57,6 +57,9 @@ class Book {
   // --- NOVO CAMPO: CAMINHO DO EBOOK ---
   final String? ebookPath; 
 
+  /// Posição de leitura do EPUB (CFI), para retomar exatamente de onde parou.
+  final String? epubCfi;
+
   Book({
     this.id, required this.title, required this.author, required this.publisher, required this.genre,
     required this.pageCount, this.currentPage = 0, required this.price, required this.isRead,
@@ -64,6 +67,7 @@ class Book {
     this.imagePath, this.rating = 0.0, this.review,
     this.isPaused = false, this.lastPauseDate,
     this.ebookPath, // Construtor atualizado
+    this.epubCfi,
   });
 
   Map<String, dynamic> toMap() {
@@ -77,6 +81,7 @@ class Book {
       'isPaused': isPaused ? 1 : 0,
       'lastPauseDate': lastPauseDate?.toIso8601String(),
       'ebookPath': ebookPath, // Salva no banco
+      'epubCfi': epubCfi,
     };
   }
 
@@ -91,6 +96,7 @@ class Book {
       isPaused: (map['isPaused'] ?? 0) == 1,
       lastPauseDate: map['lastPauseDate'] != null ? DateTime.parse(map['lastPauseDate']) : null,
       ebookPath: map['ebookPath'], // Lê do banco
+      epubCfi: map['epubCfi'],
     );
   }
 
@@ -101,7 +107,7 @@ class Book {
     int? pageCount, int? currentPage, double? price, bool? isRead,
     DateTime? dateAcquired, DateTime? startDate, DateTime? targetDate,
     String? imagePath, double? rating, String? review,
-    bool? isPaused, DateTime? lastPauseDate, String? ebookPath,
+    bool? isPaused, DateTime? lastPauseDate, String? ebookPath, String? epubCfi,
     bool clearTargetDate = false, bool clearLastPauseDate = false,
     bool clearImagePath = false, bool clearEbookPath = false,
   }) {
@@ -124,6 +130,7 @@ class Book {
       isPaused: isPaused ?? this.isPaused,
       lastPauseDate: clearLastPauseDate ? null : (lastPauseDate ?? this.lastPauseDate),
       ebookPath: clearEbookPath ? null : (ebookPath ?? this.ebookPath),
+      epubCfi: clearEbookPath ? null : (epubCfi ?? this.epubCfi),
     );
   }
 

@@ -32,7 +32,7 @@ class DatabaseHelper {
     // Adicionado onUpgrade para migração
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       // Sem isso o SQLite ignora FOREIGN KEY / ON DELETE CASCADE
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _createDB,
@@ -60,7 +60,8 @@ class DatabaseHelper {
         review TEXT,
         isPaused BOOLEAN DEFAULT 0,
         lastPauseDate TEXT,
-        ebookPath TEXT 
+        ebookPath TEXT,
+        epubCfi TEXT
       )
     ''');
 
@@ -83,6 +84,13 @@ class DatabaseHelper {
         FOREIGN KEY (bookId) REFERENCES books (id) ON DELETE CASCADE
       )
     ''');
+
+    await _createIndexes(db);
+  }
+
+  Future<void> _createIndexes(Database db) async {
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_sessions_bookId ON reading_sessions (bookId)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_quotes_bookId ON quotes (bookId)');
   }
 
   // --- MIGRAÇÃO DE BANCO DE DADOS (V1 -> V2) ---
@@ -90,6 +98,11 @@ class DatabaseHelper {
     if (oldVersion < 2) {
       // Se o usuário já tem o app, adicionamos a coluna nova sem apagar nada
       await db.execute("ALTER TABLE books ADD COLUMN ebookPath TEXT");
+    }
+    if (oldVersion < 3) {
+      // v3: posição de leitura do EPUB + índices nas chaves estrangeiras
+      await db.execute("ALTER TABLE books ADD COLUMN epubCfi TEXT");
+      await _createIndexes(db);
     }
   }
 
